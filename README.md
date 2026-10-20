@@ -17,6 +17,7 @@
   <img alt="Dependency-Track 4.12+" src="https://img.shields.io/badge/Dependency--Track-4.12%2B-4B5DA8" />
   <img alt="Trivy" src="https://img.shields.io/badge/scanner-Trivy-1904DA?logo=aqua&amp;logoColor=white" />
   <img alt="Docker" src="https://img.shields.io/badge/run%20with-Docker-2496ED?logo=docker&amp;logoColor=white" />
+  <a href="#how-it-is-built"><img alt="Built with AI assistance" src="https://img.shields.io/badge/built%20with-AI%20assistance-8A2BE2" /></a>
 </p>
 
 <p align="center">
@@ -526,6 +527,13 @@ Rules for translators:
 `pytest` (`tests/test_i18n.py`) checks every catalogue: that it has no unknown
 keys (a typo), that no message lost a placeholder or added a foreign one, and
 that the shipped catalogues (`cs`, `en`) are complete.
+
+## How it is built
+
+Vulnyard is developed with the help of AI coding tools, mostly Claude. The
+design, the decisions and the review of every change are mine: generated code
+goes through the same tests, review and release process as any other, and I am
+responsible for what gets released.
 
 ## Contributing
 

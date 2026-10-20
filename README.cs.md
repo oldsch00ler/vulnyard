@@ -17,6 +17,7 @@
   <img alt="Dependency-Track 4.12+" src="https://img.shields.io/badge/Dependency--Track-4.12%2B-4B5DA8" />
   <img alt="Trivy" src="https://img.shields.io/badge/scanner-Trivy-1904DA?logo=aqua&amp;logoColor=white" />
   <img alt="Docker" src="https://img.shields.io/badge/run%20with-Docker-2496ED?logo=docker&amp;logoColor=white" />
+  <a href="#jak-vzniká"><img alt="Vzniká s pomocí AI" src="https://img.shields.io/badge/built%20with-AI%20assistance-8A2BE2" /></a>
 </p>
 
 <p align="center">
@@ -492,6 +493,13 @@ Pravidla pro překladatele:
 `pytest` (`tests/test_i18n.py`) zkontroluje každý katalog: že nemá neznámé klíče
 (překlep), že žádná hláška nepřišla o placeholder nebo nepřidala cizí a že
 dodávané katalogy (`cs`, `en`) jsou kompletní.
+
+## Jak vzniká
+
+Vulnyard vzniká za pomoci AI nástrojů pro programování, převážně Claude. Návrh,
+rozhodnutí a kontrola každé změny jsou na mně: vygenerovaný kód prochází stejnými
+testy, review a procesem vydání jako jakýkoli jiný a za to, co se vydá, odpovídám
+já.
 
 ## Přispívání
 
