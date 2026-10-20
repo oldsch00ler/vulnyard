@@ -1,0 +1,53 @@
+name: Bug report
+description: Something does not work as described.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **Never paste tokens, API keys or webhook URLs.**
+        Security issues go through [SECURITY.md](../blob/main/SECURITY.md), not here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      placeholder: |
+        1. Create a group target with …
+        2. Run a scan …
+  - type: input
+    id: vulnyard
+    attributes:
+      label: Vulnyard version
+      description: Settings → Environment → Application version
+    validations:
+      required: true
+  - type: input
+    id: dtrack
+    attributes:
+      label: Dependency-Track version
+  - type: input
+    id: gitlab
+    attributes:
+      label: GitLab version (self-hosted or gitlab.com)
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: How do you run Vulnyard?
+      options:
+        - docker compose
+        - Docker image elsewhere (Kubernetes, …)
+        - nixpacks (Coolify, Railway, …)
+        - From source
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Secrets are masked in the log, but please check before pasting.
+      render: text

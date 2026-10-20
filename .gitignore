@@ -1,0 +1,26 @@
+# Secrets and local configuration
+.env
+.env.local
+
+# Trivy binary installed by scripts/install-trivy.sh
+.bin/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Frontend
+node_modules/
+frontend/dist/
+frontend/node_modules/
+frontend/.vite/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/

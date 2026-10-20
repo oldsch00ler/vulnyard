@@ -1,0 +1,77 @@
+# Local and self-hosted deployment. The nixpacks path lives in nixpacks.toml;
+# keep both in sync.
+#
+#   docker compose up --build                    # app + PostgreSQL
+#   docker compose --profile dtrack up --build    # + local Dependency-Track
+#
+# With VULNYARD_IMAGE set in .env, a released image is run instead of a build:
+#   docker compose pull && docker compose up -d --no-build
+
+name: vulnyard
+
+services:
+  app:
+    # Built from this checkout unless VULNYARD_IMAGE names a released image.
+    image: ${VULNYARD_IMAGE:-vulnyard:local}
+    build:
+      context: .
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    # Optional: copy .env.example to .env and fill in your values.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PORT: 8000
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://vulnyard:vulnyard@postgres:5432/vulnyard}
+      TZ: ${TZ:-UTC}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-vulnyard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vulnyard}
+      POSTGRES_DB: ${POSTGRES_DB:-vulnyard}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vulnyard} -d ${POSTGRES_DB:-vulnyard}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # Optional Dependency-Track for trying the app out without an existing
+  # instance. API on http://localhost:8081, UI on http://localhost:8082.
+  # Set DT_API_URL=http://dtrack-apiserver:8080 and DT_UI_URL=http://localhost:8082
+  # in .env, and create an API key in the Dependency-Track UI.
+  dtrack-apiserver:
+    profiles: ["dtrack"]
+    image: dependencytrack/apiserver:4.14.4
+    environment:
+      # Dependency-Track needs a lot of heap; lower at your own risk.
+      EXTRA_JAVA_OPTIONS: "-Xmx4G"
+    ports:
+      - "${DTRACK_API_PORT:-8081}:8080"
+    volumes:
+      - dtrack-data:/data
+    restart: unless-stopped
+
+  dtrack-frontend:
+    profiles: ["dtrack"]
+    image: dependencytrack/frontend:4.14.4
+    environment:
+      API_BASE_URL: "http://localhost:${DTRACK_API_PORT:-8081}"
+    ports:
+      - "${DTRACK_UI_PORT:-8082}:8080"
+    depends_on:
+      - dtrack-apiserver
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  dtrack-data:

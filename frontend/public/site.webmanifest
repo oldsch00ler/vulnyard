@@ -1,0 +1,16 @@
+{
+  "name": "Vulnyard",
+  "short_name": "Vulnyard",
+  "description": "Centrální skenování repozitářů přes Trivy a Dependency-Track",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1B2A4A",
+  "theme_color": "#1B2A4A",
+  "lang": "cs",
+  "icons": [
+    { "src": "/logo-mark.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
+    { "src": "/logo-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "/apple-touch-icon.png", "type": "image/png", "sizes": "180x180", "purpose": "any" }
+  ]
+}

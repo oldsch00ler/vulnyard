@@ -1,0 +1,23 @@
+Vulnyard
+https://vulnyard.eu
+
+Copyright 2026 Lukáš Zuzaňák <lukas@zuzanak.eu>
+https://zuzanak.eu
+https://zulustudio.eu
+
+This product is licensed under the Apache License, Version 2.0
+(see the LICENSE file).
+
+-------------------------------------------------------------------------------
+Third-party software
+-------------------------------------------------------------------------------
+
+Container images built from this repository bundle the Trivy binary:
+
+  Trivy
+  https://github.com/aquasecurity/trivy
+  Copyright Aqua Security Software Ltd.
+  Licensed under the Apache License, Version 2.0
+
+This product communicates with, but does not include, OWASP Dependency-Track
+(https://dependencytrack.org), licensed under the Apache License, Version 2.0.

@@ -1,0 +1,5 @@
+# Development and test dependencies (not installed in the container image).
+-r requirements.txt
+pytest==9.1.1
+httpx2==2.13.1
+pytest-asyncio==1.4.0

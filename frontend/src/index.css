@@ -1,0 +1,50 @@
+@import 'tailwindcss';
+
+/*
+ * Severity colours (SPEC 12: critical red, high orange, medium yellow, low blue,
+ * unassigned grey) validated with the data-viz palette checker against the card
+ * surfaces (#ffffff light, #0f172a dark):
+ *   - lightness band and normal-vision separation pass in both modes
+ *   - grey for "unassigned" is below the chroma floor on purpose, and red /
+ *     orange / yellow collapse under red-green colour blindness no matter how
+ *     they are stepped. Both are mitigated the way the method requires: every
+ *     value carries its text label, stacked segments are separated by a 2px
+ *     surface gap, the legend is always present and the trend has a table view.
+ */
+@theme {
+  --color-severity-critical: #a8121f;
+  --color-severity-high: #ff7a00;
+  --color-severity-medium: #9c8f00;
+  --color-severity-low: #1d6fd0;
+  --color-severity-unassigned: #8a8a85;
+
+  /* Chart surface, used for the 2px gap between stacked segments. */
+  --color-chart-surface: #ffffff;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+/* Light and dark mode follow the system setting; the dark steps are chosen for
+ * the dark surface, not derived by flipping the light ones. */
+@media (prefers-color-scheme: dark) {
+  body {
+    @apply bg-slate-950 text-slate-100;
+  }
+
+  :root {
+    --color-severity-critical: #bd2b3a;
+    --color-severity-high: #d97200;
+    --color-severity-medium: #7a7800;
+    --color-severity-low: #3070c8;
+    --color-severity-unassigned: #7b7b76;
+    --color-chart-surface: #0f172a;
+  }
+}
