@@ -15,6 +15,7 @@ import RunDetail from './pages/RunDetail'
 import Runs from './pages/Runs'
 import Settings from './pages/Settings'
 import Targets from './pages/Targets'
+import Threats from './pages/Threats'
 import Vulnerabilities from './pages/Vulnerabilities'
 
 export default function App() {
@@ -45,6 +46,7 @@ export default function App() {
 
       <Routes>
         <Route path="/" element={<Dashboard />} />
+        <Route path="/threats" element={<Threats />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/projects/:projectId" element={<ProjectDetail />} />
         <Route path="/vulnerabilities" element={<Vulnerabilities />} />

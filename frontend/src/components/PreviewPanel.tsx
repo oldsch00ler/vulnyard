@@ -4,6 +4,7 @@
 import { useTranslation } from 'react-i18next'
 
 import type { PreviewResult } from '../api/targets'
+import { smallButton } from '../lib/buttons'
 
 interface PreviewPanelProps {
   result: PreviewResult
@@ -27,7 +28,7 @@ export default function PreviewPanel({ result, onClose }: PreviewPanelProps) {
             })}
           </p>
         </div>
-        <button type="button" onClick={onClose} className="text-sm underline hover:no-underline">
+        <button type="button" onClick={onClose} className={smallButton}>
           {t('common.close')}
         </button>
       </header>

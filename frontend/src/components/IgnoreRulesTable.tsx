@@ -4,6 +4,7 @@
 import { useTranslation } from 'react-i18next'
 
 import { ANY_COMPONENT, type IgnoreRule } from '../api/ignores'
+import { smallDangerButton } from '../lib/buttons'
 import { formatDate } from '../lib/format'
 
 interface IgnoreRulesTableProps {
@@ -76,7 +77,7 @@ export default function IgnoreRulesTable({
                   type="button"
                   onClick={() => onDelete(rule)}
                   disabled={deletingId === rule.id}
-                  className="text-xs underline hover:no-underline disabled:opacity-40"
+                  className={smallDangerButton}
                 >
                   {t('common.delete')}
                 </button>

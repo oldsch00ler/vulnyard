@@ -538,6 +538,66 @@ class VulnerabilityList(BaseModel):
     page_size: int
 
 
+# --- Threats -------------------------------------------------------------------
+
+
+class KevInfo(BaseModel):
+    """What the CISA KEV catalog says about an exploited vulnerability."""
+
+    cve_id: str
+    name: str = ""
+    date_added: date | None = None
+    due_date: date | None = None
+    ransomware: bool = False
+    required_action: str = ""
+
+
+class ThreatItem(BaseModel):
+    vuln_id: str
+    source: str
+    severity: str
+    cvss_v3_score: float | None = None
+    epss_score: float | None = None
+    epss_percentile: float | None = None
+    #: Why it is listed: "exploited", "likely", "new".
+    reasons: list[str]
+    cve_ids: list[str] = Field(default_factory=list)
+    kev: KevInfo | None = None
+    #: When it first showed up in one of our projects.
+    first_seen: datetime | None = None
+    affected_project_count: int = 0
+    #: A newer version of an affected component exists (not necessarily a fix).
+    newer_version_available: bool = False
+
+
+class KevFeedStatus(BaseModel):
+    enabled: bool
+    available: bool
+    count: int = 0
+    fetched_at: datetime | None = None
+    released_at: datetime | None = None
+    error_code: str | None = None
+
+
+class ThreatCounts(BaseModel):
+    exploited: int = 0
+    likely: int = 0
+    new: int = 0
+
+
+class ThreatList(BaseModel):
+    items: list[ThreatItem]
+    total: int
+    page: int
+    page_size: int
+    counts: ThreatCounts
+    kev: KevFeedStatus
+    #: False when no finding carries EPSS: Dependency-Track does not mirror it.
+    epss_available: bool
+    epss_threshold: float
+    new_days: int
+
+
 class AffectedProject(BaseModel):
     dt_project_uuid: str
     dt_name: str

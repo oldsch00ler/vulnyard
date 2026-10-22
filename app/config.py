@@ -21,6 +21,10 @@ AUTH_MODES = ("none", "proxy-header")
 # stored choice. The available ones are the catalogues in app/i18n.
 DEFAULT_LOCALE = "cs"
 
+DEFAULT_KEV_FEED_URL = (
+    "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+)
+
 # Variables required before any scanning can happen. Missing ones do not stop
 # the application: it starts, warns and disables scanning.
 SCAN_CONFIG_VARIABLES = ("GITLAB_TOKEN", "DT_API_URL", "DT_API_KEY")
@@ -54,6 +58,10 @@ class Settings(BaseSettings):
     trivy_offline: bool = False
 
     ca_bundle: str = ""
+
+    #: CISA catalog of known exploited vulnerabilities; empty turns it off
+    #: (for example without internet access).
+    kev_feed_url: str = DEFAULT_KEV_FEED_URL
 
     tz: str = "UTC"
     default_locale: str = DEFAULT_LOCALE

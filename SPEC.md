@@ -178,6 +178,7 @@ cmd = "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
 | `TRIVY_BIN` | ne | – | Explicitní cesta k Trivy (3.2) |
 | `TRIVY_OFFLINE` | ne | `false` | `true` = `trivy fs --offline-scan` pro prostředí bez internetu |
 | `CA_BUNDLE` | ne | – | Cesta k PEM s vlastní CA (GitLab/DT s interním certifikátem); použít pro httpx, git (`GIT_SSL_CAINFO`) i Trivy (`SSL_CERT_FILE`) |
+| `KEV_FEED_URL` | ne | katalog CISA KEV | Zdroj katalogu známých zneužívaných zranitelností (9.7); prázdná hodnota ho vypne (prostředí bez internetu) |
 | `TZ` | ne | `UTC` | Časová zóna scheduleru a zobrazení |
 | `DEFAULT_LOCALE` | ne | `cs` | Výchozí jazyk UI a hlášek |
 | `LOG_LEVEL` | ne | `INFO` | |
@@ -407,6 +408,26 @@ aplikace (Dependency-Track žádné vzory neumí) a rozpadá ho na jednotlivé n
 - Selhání Dependency-Tracku pravidlo nezruší: rozhodnutí je uložené a další běh ho
   dopošle.
 
+### 9.7 Aktuální hrozby
+
+Závažnost říká, jak zlá by zranitelnost byla, ne jestli ji někdo zneužívá. Stránka
+Hrozby proto z nálezů **našich projektů** (jako 9.4, bez ignorovaných) vybírá ty, u
+kterých je důvod jednat hned:
+
+- **Aktivně zneužívané:** zranitelnost je v katalogu CISA KEV (Known Exploited
+  Vulnerabilities). Katalog zná jen CVE, kdežto DT často hlásí GHSA/OSV id – páruje
+  se proto i přes aliasy nálezu (`vulnerability.aliases` v `/finding/project/{uuid}`).
+- **Pravděpodobně zneužité:** EPSS z DT je aspoň zvolený práh (výchozí 10 %). DT ho
+  posílá jen se zapnutým stahováním EPSS; bez něj stránka upozorní.
+- **Nové a závažné:** kritické nebo vysoké, poprvé přiřazené některému našemu
+  projektu (`attribution.attributedOn`, nejstarší z projektů) za posledních N dní
+  (výchozí 7).
+
+Řazení podle síly důkazu: zneužívané (s ransomwarem první), pak EPSS, závažnost a
+stáří. Katalog KEV se stahuje z `KEV_FEED_URL` líně, nejvýš jednou denně, drží se v
+paměti; při chybě zůstává poslední kopie a další pokus je do hodiny. Bez katalogu
+(vypnutý nebo nedostupný) stránka funguje dál, jen bez první kategorie, a řekne to.
+
 ---
 
 ## 10. Integrace GitLab (`GitLabSource`)
@@ -472,6 +493,28 @@ JSON. Chyby ve tvaru `{"error": {"code": "...", "params": {...}, "message": "př
 
 Dokumentace API (Swagger UI) je na `/api/docs`, schéma na `/api/openapi.json`.
 
+### 11.1 MCP pro agenty v IDE
+
+`/mcp` – MCP server (Streamable HTTP, bezstavový, JSON odpovědi), aby se vývojář
+mohl ptát z libovolného MCP klienta (Claude Code, Cursor, VS Code…).
+
+- **Jen pro čtení, vždy.** Žádný nástroj nespouští sken, neignoruje nález ani nic
+  nemění – ani s tokenem `write`. Agent nesmí jednat sám.
+- **Vždy s API tokenem** (`Authorization: Bearer vy_…`), i při `AUTH_MODE=none`;
+  token je zároveň audit (log `MCP <nástroj> called by token <název>`). MCP posílá
+  každé volání jako `POST`, proto ho smí i token `read`.
+- **Nástroje:** `list_projects` (hledání cesty), `project_findings` (nálezy
+  repozitáře od nejhorších, s novější verzí komponenty jako tipem), `find_vulnerability`
+  (kde máme CVE/GHSA včetně aliasů a KEV), `current_threats` (výběr podle 9.7),
+  `scan_status` (poslední skeny a přeložená chyba). Repozitář se zadává cestou
+  nebo git remote URL (HTTPS i SSH); bez větve se bere default branch.
+- Jen naše projekty (jako 9.4). Odpovědi kompaktní (bez prázdných polí, s limitem
+  a `truncated`), protože končí v kontextu agenta. Chyby jako kódy s přeloženou
+  zprávou z katalogu (`mcp.*`).
+- Ochrana proti DNS rebindingu (allow-list Host/Origin) je vypnutá: je určená pro
+  servery na localhostu, aplikace běží pod libovolným jménem a každé volání nese
+  token, který stránka v prohlížeči přiložit nemůže.
+
 ---
 
 ## 12. Frontend
@@ -485,6 +528,7 @@ Levé menu, v hlavičce indikátor běžícího skenu, banner při chybějící 
 5. **Cíle skenování** – seznam cílů (typ, cesta, větve, plán lidsky „denně ve 2:00“, počet projektů, stav, přepínač enabled). Formulář: typ s našeptávačem ze zdroje, podskupiny, **větve** – „Default branch (doporučeno)“ / „Vlastní výběr“ (chipy s názvy/vzory, u projektu našeptávač skutečných větví, „Skenovat i default branch“, limit větví), cron s předvolbami a vlastním výrazem, vzory výjimek, přeskakovat beze změny. Tlačítka **„Náhled projektů“** a „Spustit sken“.
 6. **Běhy skenů** – historie běhů; detail s joby, stavem a chybou/logem; zrušení.
 7. **Nastavení** – stav připojení s testy, verze Trivy a DT (varování u nepodporované), souběh, výchozí cron, retence, globální výjimky, notifikace do chatu, **pravidla ignorace** (seznam s rozsahem, vzorem, platností a počtem potlačených nálezů; přidání, smazání, „Aplikovat znovu“), přehled ENV jen jako nastaveno/chybí.
+8. **Hrozby** – sekce 9.7: karty s počty (zneužívané, pravděpodobně zneužité, nové a závažné), které zároveň filtrují; volba prahu EPSS a počtu dní; tabulka s důvody, EPSS a percentilem, údaji z KEV (přidáno, termín CISA, ransomware) a datem „poprvé u nás“; rozbalení se zasaženými projekty a tlačítko „Ignorovat“ jako u Zranitelností. V menu hned pod Přehledem.
 
 ---
 

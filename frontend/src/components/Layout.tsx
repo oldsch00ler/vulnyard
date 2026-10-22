@@ -16,6 +16,7 @@ interface LayoutProps {
 
 const NAV_ITEMS = [
   { to: '/', labelKey: 'nav.dashboard' },
+  { to: '/threats', labelKey: 'nav.threats' },
   { to: '/projects', labelKey: 'nav.projects' },
   { to: '/vulnerabilities', labelKey: 'nav.vulnerabilities' },
   { to: '/targets', labelKey: 'nav.targets' },

@@ -102,3 +102,49 @@ async def _pending_jobs(run_id: int) -> bool:
             {"run_id": run_id},
         )
         return bool(result.scalar_one())
+
+
+def test_worker_follows_the_stored_concurrency(scan_client: TestClient) -> None:
+    """The limit set in the UI applies without a restart, both up and down."""
+    worker = scan_client.app.state.worker
+    claimed = iter(range(1, 100))
+
+    from app.db import session_factory
+    from app.services import app_settings
+
+    async def set_limit(limit: int) -> None:
+        async with session_factory()() as session:
+            await app_settings.set_value(session, app_settings.KEY_SCAN_CONCURRENCY, limit)
+            await session.commit()
+
+    async def drive() -> list[int]:
+        release = asyncio.Event()
+
+        async def claim() -> int:
+            return next(claimed)
+
+        async def process(_job_id: int) -> None:
+            await release.wait()
+
+        worker._claim_job = claim  # noqa: SLF001 - no real jobs needed
+        worker._process = process  # noqa: SLF001
+        worker._running = True  # noqa: SLF001 - drive the dispatch by hand
+        started = []
+        try:
+            started.append(await worker._dispatch_available())  # noqa: SLF001
+            await set_limit(5)
+            started.append(await worker._dispatch_available())  # noqa: SLF001
+            await set_limit(1)
+            started.append(await worker._dispatch_available())  # noqa: SLF001
+        finally:
+            worker._running = False  # noqa: SLF001
+            release.set()
+            await asyncio.gather(*worker._tasks.values())  # noqa: SLF001
+        return started
+
+    scan_client.put("/api/settings", json={"scan_concurrency": 3})
+    started = scan_client.portal.call(drive)  # type: ignore[attr-defined]
+
+    # 3 at first, 2 more once raised to 5, none after lowering while 5 run.
+    assert started == [3, 2, 0]
+    assert worker.concurrency == 1

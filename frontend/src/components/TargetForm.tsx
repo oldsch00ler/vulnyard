@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { useWebhookTest } from '../api/settings'
 import { useBranchSuggestions, useSourceTest } from '../api/source'
 import type { BranchMode, Target, TargetKind, TargetPayload, TargetSelection } from '../api/targets'
+import { inputButton, primaryButton, secondaryButton } from '../lib/buttons'
 import { CRON_PRESETS } from '../lib/cron'
 import ChipInput from './ChipInput'
 import SourcePicker, { type SourceSelection } from './SourcePicker'
@@ -360,7 +361,7 @@ export default function TargetForm({
             type="button"
             onClick={() => testSource.mutate(credentials)}
             disabled={testSource.isPending}
-            className="rounded-md border border-slate-300 px-2 py-1 text-sm disabled:opacity-40 dark:border-slate-700"
+            className={inputButton}
           >
             {testSource.isPending ? t('common.loading') : t('targets.form.testSource')}
           </button>
@@ -398,7 +399,7 @@ export default function TargetForm({
               type="button"
               onClick={() => testWebhook.mutate(target.id)}
               disabled={testWebhook.isPending}
-              className="rounded-md border border-slate-300 px-2 py-1 text-sm disabled:opacity-40 dark:border-slate-700"
+              className={inputButton}
             >
               {testWebhook.isPending ? t('common.loading') : t('settings.notifications.test')}
             </button>
@@ -412,9 +413,11 @@ export default function TargetForm({
         {testWebhook.data && (
           <p
             className={`text-xs ${
-              testWebhook.data.ok
-                ? 'text-emerald-700 dark:text-emerald-300'
-                : 'text-red-600 dark:text-red-400'
+              testWebhook.data.ok && testWebhook.data.code
+                ? 'text-amber-700 dark:text-amber-300'
+                : testWebhook.data.ok
+                  ? 'text-emerald-700 dark:text-emerald-300'
+                  : 'text-red-600 dark:text-red-400'
             }`}
           >
             {testWebhook.data.detail}
@@ -432,7 +435,7 @@ export default function TargetForm({
         <button
           type="submit"
           disabled={submitting || !selection}
-          className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900"
+          className={primaryButton}
         >
           {editing ? t('common.save') : t('targets.form.create')}
         </button>
@@ -445,11 +448,11 @@ export default function TargetForm({
               onPreview(base)
             }
           }}
-          className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium disabled:opacity-40 dark:border-slate-700"
+          className={secondaryButton}
         >
           {previewing ? t('common.loading') : t('targets.form.preview')}
         </button>
-        <button type="button" onClick={onCancel} className="px-3 py-2 text-sm underline hover:no-underline">
+        <button type="button" onClick={onCancel} className={secondaryButton}>
           {t('common.cancel')}
         </button>
       </div>

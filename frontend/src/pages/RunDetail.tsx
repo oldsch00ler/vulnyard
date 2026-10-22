@@ -8,6 +8,7 @@ import { ApiError } from '../api/client'
 import { ACTIVE_RUN_STATUSES, useCancelRun, useRun } from '../api/runs'
 import { useStatus } from '../api/status'
 import StatusBadge from '../components/StatusBadge'
+import { secondaryButton } from '../lib/buttons'
 import { formatBytes, formatDateTime, formatDuration, shortSha } from '../lib/format'
 
 export default function RunDetail() {
@@ -35,7 +36,7 @@ export default function RunDetail() {
             type="button"
             onClick={() => cancelRun.mutate(run.id)}
             disabled={cancelRun.isPending}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium disabled:opacity-40 dark:border-slate-700"
+            className={secondaryButton}
           >
             {cancelRun.isPending ? t('common.loading') : t('runs.cancel')}
           </button>

@@ -20,6 +20,12 @@ import ChipInput from '../components/ChipInput'
 import SeverityBadges, { SeverityLabel } from '../components/SeverityBadges'
 import StatusBadge from '../components/StatusBadge'
 import LazyTrendChart from '../components/LazyTrendChart'
+import {
+  compactPrimaryButton,
+  compactSecondaryButton,
+  smallButton,
+  smallPrimaryButton,
+} from '../lib/buttons'
 import { formatDateTime, formatDuration, shortSha } from '../lib/format'
 
 export default function ProjectDetail() {
@@ -98,7 +104,7 @@ export default function ProjectDetail() {
                 type="button"
                 onClick={() => scanProject.mutate(project.id)}
                 disabled={scanProject.isPending}
-                className="rounded-md bg-slate-900 px-3 py-1.5 font-medium text-white disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900"
+                className={compactPrimaryButton}
               >
                 {t('projects.scanNow')}
               </button>
@@ -106,7 +112,7 @@ export default function ProjectDetail() {
                 type="button"
                 onClick={() => setExcluded.mutate({ projectId: project.id, excluded: !project.excluded })}
                 disabled={setExcluded.isPending}
-                className="rounded-md border border-slate-300 px-3 py-1.5 font-medium disabled:opacity-40 dark:border-slate-700"
+                className={compactSecondaryButton}
               >
                 {project.excluded ? t('projects.include') : t('projects.exclude')}
               </button>
@@ -235,14 +241,14 @@ export default function ProjectDetail() {
                             { onSuccess: () => setOverrideOpen(false) },
                           )
                         }
-                        className="rounded-md bg-slate-900 px-2 py-1 font-medium text-white dark:bg-slate-100 dark:text-slate-900"
+                        className={smallPrimaryButton}
                       >
                         {t('common.save')}
                       </button>
                       <button
                         type="button"
                         onClick={() => setOverrideOpen(false)}
-                        className="underline hover:no-underline"
+                        className={smallButton}
                       >
                         {t('common.cancel')}
                       </button>
@@ -250,7 +256,7 @@ export default function ProjectDetail() {
                   </div>
                 ) : (
                   <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                    <button type="button" onClick={openOverride} className="underline hover:no-underline">
+                    <button type="button" onClick={openOverride} className={smallButton}>
                       {project.branch_override
                         ? t('projects.override.edit')
                         : t('projects.override.set')}
@@ -259,7 +265,7 @@ export default function ProjectDetail() {
                       <button
                         type="button"
                         onClick={() => deleteOverride.mutate(project.id)}
-                        className="underline hover:no-underline"
+                        className={smallButton}
                       >
                         {t('projects.override.remove')}
                       </button>

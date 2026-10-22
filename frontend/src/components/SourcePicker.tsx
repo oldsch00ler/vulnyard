@@ -11,6 +11,7 @@ import {
   useProjectSuggestions,
 } from '../api/source'
 import type { TargetKind } from '../api/targets'
+import { smallButton } from '../lib/buttons'
 
 export interface SourceSelection {
   ref: string
@@ -80,7 +81,7 @@ export default function SourcePicker({
               onChange(null)
               setSearch('')
             }}
-            className="text-xs underline hover:no-underline"
+            className={smallButton}
           >
             {t('common.change')}
           </button>

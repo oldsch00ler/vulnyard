@@ -11,6 +11,7 @@ import {
   type IgnoreRulePayload,
 } from '../api/ignores'
 import { useTargets } from '../api/targets'
+import { primaryButton, secondaryButton } from '../lib/buttons'
 
 interface IgnoreRuleFormProps {
   /** Pre-filled when the form is opened from a vulnerability in the summary. */
@@ -174,11 +175,11 @@ export default function IgnoreRuleForm({
         <button
           type="submit"
           disabled={submitting || !vuln.trim()}
-          className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900"
+          className={primaryButton}
         >
           {submitting ? t('common.saving') : t('ignores.form.save')}
         </button>
-        <button type="button" onClick={onCancel} className="text-sm underline hover:no-underline">
+        <button type="button" onClick={onCancel} className={secondaryButton}>
           {t('common.cancel')}
         </button>
       </div>

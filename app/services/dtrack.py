@@ -120,6 +120,8 @@ class DTFinding:
     latest_version: str | None = None
     suppressed: bool = False
     attributed_on: datetime | None = None
+    #: Other ids of the same vulnerability (a GHSA finding usually has a CVE).
+    aliases: tuple[str, ...] = ()
 
     # Identity in Dependency-Track; an analysis is written per project, component
     # and vulnerability, so suppressing a finding needs all three.
@@ -477,6 +479,42 @@ class DependencyTrackClient:
     async def refresh_project_metrics(self, uuid: str) -> None:
         await self._request_json("GET", f"/metrics/project/{uuid}/refresh")
 
+    async def refresh_project_metrics_and_wait(
+        self,
+        uuid: str,
+        *,
+        poll_interval_seconds: float = 2.0,
+        timeout_seconds: float = 180.0,
+        should_stop: Callable[[], bool] | None = None,
+    ) -> bool:
+        """Request a metrics refresh and wait until Dependency-Track has done it.
+
+        The refresh endpoint only dispatches the computation, so metrics read
+        straight after it are still those from before the scan (or none at all
+        for a new project). The computation always moves `lastOccurrence`
+        forward, even when the counts did not change, so a newer timestamp
+        means the numbers are current. Returns False when that did not happen
+        within the timeout.
+        """
+        before = await self.current_project_metrics(uuid)
+        since = before.last_occurrence if before is not None else None
+        await self.refresh_project_metrics(uuid)
+
+        waited = 0.0
+        while waited < timeout_seconds:
+            if should_stop is not None and should_stop():
+                raise ProcessingAborted
+            await asyncio.sleep(poll_interval_seconds)
+            waited += poll_interval_seconds
+            current = await self.current_project_metrics(uuid)
+            if (
+                current is not None
+                and current.last_occurrence is not None
+                and (since is None or current.last_occurrence > since)
+            ):
+                return True
+        return False
+
     async def current_project_metrics(self, uuid: str) -> DTMetrics | None:
         payload = await self._request_json("GET", f"/metrics/project/{uuid}/current")
         return _metrics(payload) if isinstance(payload, dict) else None
@@ -620,10 +658,21 @@ def _finding(payload: dict[str, Any]) -> DTFinding:
         latest_version=component.get("latestVersion"),
         suppressed=bool(analysis.get("isSuppressed")),
         attributed_on=_epoch_ms(attribution.get("attributedOn")),
+        aliases=_aliases(vulnerability),
         dt_project_uuid=component.get("project"),
         dt_component_uuid=component.get("uuid"),
         dt_vulnerability_uuid=vulnerability.get("uuid"),
     )
+
+
+def _aliases(vulnerability: dict[str, Any]) -> tuple[str, ...]:
+    """Every id in `aliases`, a list of maps like {"cveId": …, "ghsaId": …}."""
+    found: list[str] = []
+    for alias in vulnerability.get("aliases") or []:
+        if isinstance(alias, dict):
+            found.extend(str(value) for value in alias.values() if value)
+    own = str(vulnerability.get("vulnId", ""))
+    return tuple(sorted({value for value in found if value != own}))
 
 
 def _grouped(payload: dict[str, Any]) -> DTGroupedVulnerability:

@@ -82,6 +82,7 @@ function useInvalidateAfterChange() {
   return () => {
     void queryClient.invalidateQueries({ queryKey: ignoresQueryKey })
     void queryClient.invalidateQueries({ queryKey: ['vulnerabilities'] })
+    void queryClient.invalidateQueries({ queryKey: ['threats'] })
     void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     void queryClient.invalidateQueries({ queryKey: ['projects'] })
   }

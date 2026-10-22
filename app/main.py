@@ -17,14 +17,16 @@ from fastapi.responses import JSONResponse, Response
 
 from app import APP_NAME, __version__
 from app.api import api_router
-from app.auth import TokenRejectedError, authenticate_request
+from app.auth import TokenRejectedError, UnauthenticatedError, authenticate_request, is_mcp_path
 from app.config import DEFAULT_LOCALE, Settings, get_settings
 from app.db import dispose_engine, init_engine, run_migrations, session_factory
 from app.errors import AppError
 from app.i18n import resolve_locale, t
+from app.mcp_server import create_mcp_server, mcp_routes
 from app.masking import SecretMaskingFilter
 from app.schemas import HealthResponse
 from app.services.dtrack import MIN_SUPPORTED_VERSION, create_dtrack_client
+from app.services.kev import KevCatalog
 from app.services.notifications import ChatNotifier
 from app.services.queue import ScanWorker
 from app.services.scheduler import ScanScheduler
@@ -161,7 +163,7 @@ async def _init_worker(settings: Settings, app: FastAPI) -> ScanWorker:
     await worker.start()
 
     if worker.running:
-        logger.info(t("startup.worker.started", locale, concurrency=settings.scan_concurrency))
+        logger.info(t("startup.worker.started", locale, concurrency=worker.concurrency))
     else:
         reasons = []
         if getattr(app.state, "source", None) is None:
@@ -270,6 +272,10 @@ async def _shutdown(app: FastAPI) -> None:
     if notifier is not None:
         await notifier.close()
         app.state.notifier = None
+    kev = getattr(app.state, "kev", None)
+    if kev is not None:
+        await kev.close()
+        app.state.kev = None
     await dispose_engine()
 
 
@@ -289,6 +295,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.worker = None
     app.state.scheduler = None
     app.state.notifier = None
+    # Fetched lazily by the threats page, so it costs nothing until used.
+    app.state.kev = KevCatalog(settings)
 
     # DATABASE_URL is the only mandatory variable – without it we stop with a
     # clear message instead of failing later on the first query.
@@ -314,7 +322,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         raise
 
     try:
-        yield
+        # Stateless MCP still needs the SDK's task group for its requests.
+        async with app.state.mcp_server.session_manager.run():
+            yield
     finally:
         await _shutdown(app)
 
@@ -377,14 +387,14 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def require_identity(request: Request, call_next):  # noqa: ANN001, ANN202
-        """Authenticate /api/* before it reaches a route (SPEC section 13).
+        """Authenticate /api/* and /mcp before they reach a route (SPEC section 13).
 
         An API token is checked in every mode. Without one, proxy-header mode
         requires the identity header: a missing header means the authenticating
         proxy was bypassed. `/health` stays open: the platform health check does
         not go through the proxy, and it exposes nothing.
         """
-        if request.url.path.startswith("/api/"):
+        if request.url.path.startswith("/api/") or is_mcp_path(request.url.path):
             try:
                 await authenticate_request(request, get_settings())
             except AppError as error:
@@ -396,6 +406,8 @@ def create_app() -> FastAPI:
                 )
                 if isinstance(error, TokenRejectedError):
                     response.headers["WWW-Authenticate"] = 'Bearer error="invalid_token"'
+                elif isinstance(error, UnauthenticatedError) and is_mcp_path(request.url.path):
+                    response.headers["WWW-Authenticate"] = "Bearer"
                 return response
         return await call_next(request)
 
@@ -406,6 +418,10 @@ def create_app() -> FastAPI:
         return HealthResponse(status="ok")
 
     app.include_router(api_router)
+
+    # Read-only MCP endpoint for coding agents (SPEC 11.1).
+    app.state.mcp_server = create_mcp_server()
+    app.router.routes.extend(mcp_routes(app.state.mcp_server))
 
     # Registered last: the SPA catch-all must not shadow /health and /api/*.
     register_frontend(app)

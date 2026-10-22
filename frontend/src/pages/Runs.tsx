@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 import { ApiError } from '../api/client'
 import { ACTIVE_RUN_STATUSES, useCancelRun, useRuns, useScanEverything } from '../api/runs'
 import StatusBadge from '../components/StatusBadge'
+import { primaryButton, secondaryButton, smallButton } from '../lib/buttons'
 import { formatDateTime } from '../lib/format'
 
 export default function Runs() {
@@ -27,7 +28,7 @@ export default function Runs() {
             type="button"
             onClick={() => scanEverything.mutate(false)}
             disabled={scanEverything.isPending}
-            className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900"
+            className={primaryButton}
           >
             {scanEverything.isPending ? t('common.loading') : t('runs.scanEverything')}
           </button>
@@ -36,7 +37,7 @@ export default function Runs() {
             onClick={() => scanEverything.mutate(true)}
             disabled={scanEverything.isPending}
             title={t('runs.forceHint')}
-            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium disabled:opacity-40 dark:border-slate-700"
+            className={secondaryButton}
           >
             {t('runs.scanEverythingForced')}
           </button>
@@ -108,7 +109,7 @@ export default function Runs() {
                         type="button"
                         onClick={() => cancelRun.mutate(run.id)}
                         disabled={cancelRun.isPending}
-                        className="text-xs underline hover:no-underline disabled:opacity-40"
+                        className={smallButton}
                       >
                         {t('runs.cancel')}
                       </button>

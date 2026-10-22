@@ -56,7 +56,13 @@ ignore_lines() {
 }
 
 exclude_patterns() {
-  ignore_lines "$1" | grep -v '^allow-domain \|^deny ' || true
+  ignore_lines "$1" | grep -v '^allow-domain \|^deny ' | sed 's/^public[[:space:]]\{1,\}//' || true
+}
+
+# Excluded paths whose content is public elsewhere ("public <path>" lines):
+# kept out of the snapshot, but not a source of forbidden domains.
+public_patterns() {
+  ignore_lines "$1" | sed -n 's/^public[[:space:]]\{1,\}//p'
 }
 
 # Texts that must never be published ("deny <text>" lines).
@@ -87,10 +93,14 @@ is_excluded() {
 
 # Registrable domains (example.com) mentioned in the excluded files of a commit.
 forbidden_domains() {
-  local commit="$1" patterns path
+  local commit="$1" patterns public path
   patterns="$(exclude_patterns "$commit")"
+  public="$(public_patterns "$commit")"
   [ -z "$patterns" ] && return 0
   git ls-tree -r --name-only "$commit" | while IFS= read -r path; do
+    if [ -n "$public" ] && is_excluded "$path" "$public"; then
+      continue
+    fi
     if is_excluded "$path" "$patterns"; then
       git show "$commit:$path" 2>/dev/null || true
     fi

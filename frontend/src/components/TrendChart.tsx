@@ -15,6 +15,7 @@ import {
 } from 'recharts'
 
 import type { TrendPoint } from '../api/dashboard'
+import { smallButton } from '../lib/buttons'
 import { SEVERITY_CHIP, SEVERITY_ORDER, SEVERITY_VAR } from '../lib/severity'
 
 interface TrendChartProps {
@@ -52,7 +53,7 @@ export default function TrendChart({ points, height = 260 }: TrendChartProps) {
         <button
           type="button"
           onClick={() => setAsTable((value) => !value)}
-          className="text-xs underline hover:no-underline"
+          className={smallButton}
           aria-pressed={asTable}
         >
           {asTable ? t('dashboard.trend.showChart') : t('dashboard.trend.showTable')}

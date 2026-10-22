@@ -240,6 +240,37 @@ def test_test_webhook_endpoint_reports_a_missing_configuration(db_client: TestCl
     assert body["code"] == "notify.not_configured"
 
 
+def test_test_webhook_warns_when_notifications_are_turned_off(db_client: TestClient) -> None:
+    """The test always sends, scans do not: a passing test must not hide that."""
+    notifier = RecordingNotifier()
+    db_client.app.state.notifier = notifier
+    db_client.put("/api/settings", json={"notification_webhook_url": WEBHOOK})
+
+    off = db_client.post("/api/settings/test-webhook").json()
+    assert off["ok"] is True
+    assert off["code"] == "settings.notifications.sent_but_disabled"
+    assert len(notifier.sent) == 1
+
+    db_client.put("/api/settings", json={"notifications_enabled": True})
+    on = db_client.post("/api/settings/test-webhook").json()
+    assert on["ok"] is True
+    assert on["code"] is None
+
+
+def test_test_webhook_of_a_target_with_its_own_webhook_ignores_the_switch(
+    db_client: TestClient,
+) -> None:
+    db_client.app.state.notifier = RecordingNotifier()
+    target_id = db_client.post(
+        "/api/targets", json={**GROUP_TARGET, "notify_webhook_url": OTHER_WEBHOOK}
+    ).json()["id"]
+
+    body = db_client.post(f"/api/settings/test-webhook?target_id={target_id}").json()
+
+    assert body["ok"] is True
+    assert body["code"] is None
+
+
 # --- the worker decides where to send -----------------------------------------
 
 

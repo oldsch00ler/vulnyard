@@ -49,6 +49,11 @@ class AffectedProjectFinding:
     purl: str | None
     latest_version: str | None
     suppressed: bool
+    attributed_on: datetime | None = None
+
+    @property
+    def newer_version_available(self) -> bool:
+        return bool(self.latest_version) and self.latest_version != self.component_version
 
 
 @dataclass(slots=True)
@@ -60,8 +65,16 @@ class GroupedVulnerability:
     severity: str
     cvss_v3_score: float | None = None
     epss_score: float | None = None
+    epss_percentile: float | None = None
     published: datetime | None = None
+    aliases: set[str] = field(default_factory=set)
     affected: list[AffectedProjectFinding] = field(default_factory=list)
+
+    @property
+    def first_seen(self) -> datetime | None:
+        """When Dependency-Track first attributed it to one of our projects."""
+        dates = [one.attributed_on for one in self.affected if one.attributed_on is not None]
+        return min(dates) if dates else None
 
     @property
     def affected_project_count(self) -> int:
@@ -163,9 +176,11 @@ def _group(
                 severity=finding.severity,
                 cvss_v3_score=finding.cvss_v3_score,
                 epss_score=finding.epss_score,
+                epss_percentile=finding.epss_percentile,
                 published=finding.published,
             )
             groups[key] = group
+        group.aliases.update(finding.aliases)
         group.affected.append(
             AffectedProjectFinding(
                 project=project,
@@ -174,6 +189,7 @@ def _group(
                 purl=finding.purl,
                 latest_version=finding.latest_version,
                 suppressed=finding.suppressed,
+                attributed_on=finding.attributed_on,
             )
         )
 

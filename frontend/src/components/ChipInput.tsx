@@ -3,6 +3,7 @@
 
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { inputButton } from '../lib/buttons'
 
 interface ChipInputProps {
   values: string[]
@@ -80,7 +81,7 @@ export default function ChipInput({
           type="button"
           onClick={() => add(draft)}
           disabled={!draft.trim()}
-          className="rounded-md border border-slate-300 px-2 py-1 text-sm disabled:opacity-40 dark:border-slate-700"
+          className={inputButton}
         >
           {t('common.add')}
         </button>

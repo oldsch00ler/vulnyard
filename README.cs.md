@@ -41,7 +41,7 @@ nepřidává – žádné pipeline, žádné merge requesty.
 [Rychlý start](#rychlý-start-docker) · [Konfigurace](#konfigurace) ·
 [Jak skenování funguje](#jak-skenování-funguje) · [Notifikace](#notifikace-do-chatu) ·
 [Ignorování zranitelností](#ignorování-zranitelností) · [API a tokeny](#api-a-tokeny) ·
-[Přihlášení a bezpečnost](#přihlášení-a-bezpečnost) · [Jazyky](#jazyky-a-překlady) ·
+[MCP](#mcp-pro-agenty-v-ide) · [Přihlášení a bezpečnost](#přihlášení-a-bezpečnost) · [Jazyky](#jazyky-a-překlady) ·
 [Vývoj](#vývoj) · [Přispívání](#přispívání) · [Licence](#licence)
 
 ## Co aplikace umí
@@ -57,6 +57,10 @@ nepřidává – žádné pipeline, žádné merge requesty.
 - **Dashboard** – souhrny podle závažnosti, trend (30/90/180 dní), nejrizikovější
   projekty, seznam projektů s filtry, detail projektu s nálezy a historií a
   přehled zranitelností napříč projekty („kde všude máme CVE-XXXX?“).
+- **Hrozby** – zranitelnosti, které řešit nejdřív: ty, které útočníci prokazatelně
+  zneužívají (katalog CISA KEV, párovaný i přes aliasy, takže se počítá i nález
+  pod GHSA), ty, které budou pravděpodobně brzy zneužité (EPSS z Dependency-Tracku),
+  a nové kritické či vysoké. Seřazené podle síly důkazu, ne jen podle závažnosti.
 - **Notifikace do chatu** – po skenu, který najde zranitelnosti, pošle Vulnyard
   zprávu na webhook (Google Chat) s repozitářem, počty nálezů podle závažnosti a
   **maintainery repozitáře**. Webhook se nastavuje globálně, a u každého cíle jde
@@ -67,6 +71,8 @@ nepřidává – žádné pipeline, žádné merge requesty.
   i do Dependency-Tracku.
 - **Provoz** – historie běhů s chybami u jednotlivých jobů, ruční spuštění,
   zrušení běhu, plánovač, retence historie, testy připojení v Nastavení.
+- **MCP pro agenty v IDE** – vývojář se ptá z Claude Code, Cursoru nebo VS Code
+  („co má tenhle repozitář, kde používáme CVE-X?“); jen pro čtení.
 - **REST API s tokeny** – všechno z UI jde i přes API, takže jiný systém může
   třeba sám zakládat cíle skenování.
 - **Vícejazyčné rozhraní** – čeština a angličtina; další jazyk přidáš jedním
@@ -143,6 +149,7 @@ globální výjimky a notifikace do chatu.
 | `SCAN_CONCURRENCY`, `SCAN_TIMEOUT_SECONDS` | souběh skenů a timeout jednoho skenu |
 | `TRIVY_BIN`, `TRIVY_OFFLINE` | cesta k Trivy a režim bez internetu |
 | `CA_BUNDLE` | PEM s vlastní CA pro HTTP volání, git i Trivy |
+| `KEV_FEED_URL` | katalog CISA známých zneužívaných zranitelností pro stránku Hrozby (výchozí: feed CISA); prázdná hodnota ho vypne |
 | `TZ`, `DEFAULT_LOCALE`, `LOG_LEVEL` | časová zóna, výchozí jazyk (`cs`, `en`, …), úroveň logu |
 
 Povinná je jen `DATABASE_URL`. Bez proměnných pro GitLab a Dependency-Track
@@ -320,13 +327,90 @@ Pravidla:
 
 - změny udělané tokenem se v auditu (`updated_by`, `triggered_by`, `created_by`)
   zapíší jako `token:<název>`,
-- token „jen čtení“ smí jen `GET`, ostatní dostane `403`,
+- token „jen čtení“ smí jen `GET`, ostatní dostane `403` (výjimkou je MCP
+  endpoint, ten jen čte),
 - neplatný, smazaný nebo prošlý token dostane `401`,
 - tokeny může vytvářet a mazat jen člověk v UI, nikdy jiný token,
 - tokeny se nikdy neobjeví v logu ani v odpovědích API (kromě té jedné při
   vytvoření); v seznamu je jen prvních pár znaků, aby šly rozlišit.
 
 Jak se tokeny chovají v režimech přihlášení, popisuje následující sekce.
+
+## MCP pro agenty v IDE
+
+Vývojář se může Vulnyardu ptát přímo ze svého agenta – Claude Code, Cursor,
+VS Code i jakýkoli jiný MCP klient. Aplikace vystavuje MCP endpoint na **`/mcp`**
+(Streamable HTTP), takže se nic neinstaluje: stačí přidat URL a token.
+
+Je **jen pro čtení, z principu**: žádný nástroj nespouští sken, neignoruje nález
+ani nic nemění, bez ohledu na oprávnění tokenu. Na co se agent může zeptat:
+
+| Nástroj | Odpoví |
+|---|---|
+| `list_projects` | Které repozitáře se skenují, s počty nálezů. |
+| `project_findings` | Zranitelnosti repozitáře od nejhorší, u každé komponenty novější verze jako tip na upgrade. Repozitář jde zadat jako `skupina/projekt` i jako git remote URL. |
+| `find_vulnerability` | Kde máme CVE (nebo GHSA…, počítají se i aliasy): repozitáře, větve, komponenty a verze, a jestli je známá jako zneužívaná. |
+| `current_threats` | Co řešit nejdřív – stejný výběr jako stránka Hrozby. |
+| `scan_status` | Kdy se repozitář naposledy skenoval a proč to selhalo. |
+
+Každé volání vyžaduje API token, i při `AUTH_MODE=none` – je to zároveň záznam,
+kdo se ptal (`MCP … called by token <název>` v logu). Vytvoř ho v **Nastavení →
+API tokeny**; stačí **jen čtení**.
+
+**Claude Code:**
+
+```bash
+claude mcp add --transport http vulnyard https://vulnyard.example.com/mcp \
+  --header "Authorization: Bearer vy_…"
+```
+
+Pro celý tým commitni do repozitáře `.mcp.json` a token ať má každý v proměnné
+prostředí:
+
+```json
+{
+  "mcpServers": {
+    "vulnyard": {
+      "type": "http",
+      "url": "https://vulnyard.example.com/mcp",
+      "headers": { "Authorization": "Bearer ${VULNYARD_TOKEN}" }
+    }
+  }
+}
+```
+
+**Cursor** – `~/.cursor/mcp.json` (token zůstane mimo repozitář):
+
+```json
+{
+  "mcpServers": {
+    "vulnyard": {
+      "url": "https://vulnyard.example.com/mcp",
+      "headers": { "Authorization": "Bearer vy_…" }
+    }
+  }
+}
+```
+
+**VS Code** – `.vscode/mcp.json`; VS Code si token vyžádá a bezpečně uloží:
+
+```json
+{
+  "inputs": [
+    { "type": "promptString", "id": "vulnyard-token", "description": "Vulnyard API token", "password": true }
+  ],
+  "servers": {
+    "vulnyard": {
+      "type": "http",
+      "url": "https://vulnyard.example.com/mcp",
+      "headers": { "Authorization": "Bearer ${input:vulnyard-token}" }
+    }
+  }
+}
+```
+
+Pak se stačí zeptat: *„Jaké zranitelnosti má tenhle repozitář a co mám
+upgradovat?“* nebo *„Používáme něco zasaženého CVE-2026-1234?“*
 
 ## Přihlášení a bezpečnost
 

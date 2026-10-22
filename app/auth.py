@@ -35,6 +35,10 @@ TOKEN_MANAGEMENT_PATH = "/api/tokens"
 #: Methods a read-only token may use.
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
+#: The MCP endpoint (app.mcp_server). MCP sends every call as a POST, yet it
+#: only reads, so a read-only token may use it.
+MCP_PATH = "/mcp"
+
 #: Prefix of the identity recorded for audit when a token made the change.
 TOKEN_IDENTITY_PREFIX = "token:"
 
@@ -72,13 +76,14 @@ def token_principal(request: Request) -> TokenPrincipal | None:
 
 
 async def authenticate_request(request: Request, settings: Settings) -> None:
-    """Gate in front of /api/*: raises when the request may not go on.
+    """Gate in front of /api/* and /mcp: raises when the request may not go on.
 
     With a token, the token decides - also in proxy-header mode, where a
     machine caller has no proxy identity. Without one, nothing changes against
     the behaviour before tokens: proxy-header mode requires the header and
     `none` lets the request through.
     """
+    mcp = is_mcp_path(request.url.path)
     token = bearer_token(request)
     if token is not None:
         async with session_factory()() as session:
@@ -88,13 +93,22 @@ async def authenticate_request(request: Request, settings: Settings) -> None:
             raise TokenRejectedError("auth.token_invalid")
         if request.url.path == TOKEN_MANAGEMENT_PATH or request.url.path.startswith(f"{TOKEN_MANAGEMENT_PATH}/"):
             raise ForbiddenError("auth.token_management_forbidden")
-        if request.method not in SAFE_METHODS and not principal.can_write:
+        if request.method not in SAFE_METHODS and not principal.can_write and not mcp:
             raise ForbiddenError("auth.token_read_only", name=principal.name)
         request.state.api_token = principal
         return
 
+    if mcp:
+        # Agents call it, not people behind the proxy; the token is also the
+        # only audit trail of what an agent asked.
+        raise UnauthenticatedError("auth.token_required")
+
     if settings.auth_mode == AUTH_MODE_PROXY_HEADER:
         identity_from_request(request, settings)
+
+
+def is_mcp_path(path: str) -> bool:
+    return path == MCP_PATH or path.startswith(f"{MCP_PATH}/")
 
 
 def identity_from_request(request: Request, settings: Settings) -> str | None:

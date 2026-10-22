@@ -267,6 +267,10 @@ class FakeDependencyTrack:
     async def refresh_project_metrics(self, uuid: str) -> None:
         self.refreshed.append(uuid)
 
+    async def refresh_project_metrics_and_wait(self, uuid: str, **_kwargs: object) -> bool:
+        self.refreshed.append(uuid)
+        return True
+
     async def set_analysis(
         self,
         *,

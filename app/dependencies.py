@@ -15,6 +15,7 @@ from app.db import get_session
 from app.errors import AppError, SourceNotConfiguredError
 from app.i18n import resolve_locale
 from app.services.dtrack import DependencyTrackClient
+from app.services.kev import KevCatalog
 from app.services.notifications import ChatNotifier
 from app.services.queue import ScanWorker
 from app.services.scheduler import ScanScheduler
@@ -98,6 +99,11 @@ def notifier_dependency(request: Request) -> ChatNotifier:
     return notifier
 
 
+def kev_dependency(request: Request) -> KevCatalog:
+    """The CISA KEV catalog created at startup."""
+    return request.app.state.kev
+
+
 def scheduler_dependency(request: Request) -> ScanScheduler | None:
     """The scheduler, or None when scanning is not configured."""
     return getattr(request.app.state, "scheduler", None)
@@ -113,6 +119,7 @@ SourceOptionalDep = Annotated["RepositorySource | None", Depends(optional_source
 SourcesDep = Annotated[SourceProvider, Depends(source_provider_dependency)]
 WorkerDep = Annotated[ScanWorker, Depends(worker_dependency)]
 SchedulerDep = Annotated["ScanScheduler | None", Depends(scheduler_dependency)]
+KevDep = Annotated[KevCatalog, Depends(kev_dependency)]
 DTrackDep = Annotated["DependencyTrackClient | None", Depends(dtrack_dependency)]
 RequiredDTrackDep = Annotated[DependencyTrackClient, Depends(required_dtrack_dependency)]
 NotifierDep = Annotated[ChatNotifier, Depends(notifier_dependency)]

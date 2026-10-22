@@ -11,6 +11,7 @@ import { type ProjectFilters, useProjects } from '../api/projects'
 import { useStatus } from '../api/status'
 import { useTargets } from '../api/targets'
 import SeverityBadges from '../components/SeverityBadges'
+import { smallButton } from '../lib/buttons'
 import { formatDateTime } from '../lib/format'
 
 const SORTS = ['risk', 'critical', 'path', 'last_scan'] as const
@@ -235,7 +236,7 @@ export default function Projects() {
                 type="button"
                 disabled={data.page <= 1}
                 onClick={() => update({ page: data.page - 1 })}
-                className="underline hover:no-underline disabled:opacity-40"
+                className={smallButton}
               >
                 {t('common.previous')}
               </button>
@@ -243,7 +244,7 @@ export default function Projects() {
                 type="button"
                 disabled={data.page * data.page_size >= data.total}
                 onClick={() => update({ page: data.page + 1 })}
-                className="underline hover:no-underline disabled:opacity-40"
+                className={smallButton}
               >
                 {t('common.next')}
               </button>

@@ -10,6 +10,7 @@
   },
   "nav": {
     "dashboard": "Overview",
+    "threats": "Threats",
     "projects": "Projects",
     "vulnerabilities": "Vulnerabilities",
     "targets": "Scan targets",
@@ -166,6 +167,62 @@
     },
     "ignoredOnly": "All occurrences are ignored.",
     "components": "Affected components"
+  },
+  "threats": {
+    "title": "Threats",
+    "description": "Vulnerabilities in our projects that need attention first: exploited in the wild, likely to be exploited soon, or new and serious. Severity alone says how bad a vulnerability would be, not whether anybody uses it.",
+    "reason": {
+      "exploited": "Actively exploited",
+      "likely": "Likely to be exploited",
+      "new": "New and serious"
+    },
+    "reasonHint": {
+      "exploited": "Listed in the CISA catalog of known exploited vulnerabilities.",
+      "likely": "EPSS of at least {{epss}}: the probability of exploitation in the next 30 days.",
+      "new": "Critical or high, first seen in our projects in the last {{days}} days."
+    },
+    "badge": {
+      "exploited": "Exploited",
+      "likely": "EPSS",
+      "new": "New"
+    },
+    "filter": {
+      "epss": "Likely to be exploited from",
+      "epssOption": "EPSS ≥ {{value}}",
+      "days": "New in the last",
+      "daysOption_one": "{{count}} day",
+      "daysOption_other": "{{count}} days",
+      "showAll": "Show all threats"
+    },
+    "table": {
+      "id": "Vulnerability",
+      "why": "Why",
+      "severity": "Severity",
+      "epss": "EPSS",
+      "kev": "CISA KEV",
+      "firstSeen": "First seen",
+      "projects": "Projects"
+    },
+    "percentile": "percentile {{value}}",
+    "kev": {
+      "added": "added {{date}}",
+      "due": "CISA deadline {{date}}",
+      "ransomware": "Used by ransomware",
+      "detailTitle": "CISA KEV: {{cve}}",
+      "requiredAction": "Required action:"
+    },
+    "newerVersion": "A newer version of the component exists",
+    "emptyTitle": "No current threats",
+    "emptyDescription": "Nothing in our projects is known to be exploited, likely to be exploited, or new and serious.",
+    "emptyFiltered": "Nothing matches this filter.",
+    "pageInfo": "{{total}} threats in total",
+    "notice": {
+      "kevDisabled": "The CISA catalog of known exploited vulnerabilities is turned off (KEV_FEED_URL is empty), so actively exploited vulnerabilities are not recognised.",
+      "kevUnavailable": "The CISA catalog of known exploited vulnerabilities could not be downloaded, so actively exploited vulnerabilities are not recognised right now. The next attempt is within an hour.",
+      "kevStale": "The last update of the CISA catalog failed; the copy from {{date}} is used.",
+      "epssMissing": "Dependency-Track reports no EPSS scores, so \"likely to be exploited\" stays empty. Turn on the EPSS mirroring in Dependency-Track.",
+      "kevSource": "CISA catalog of known exploited vulnerabilities: {{entries}} entries, released {{date}}."
+    }
   },
   "targets": {
     "title": "Scan targets",
@@ -365,7 +422,7 @@
     "variables": "Environment variables",
     "variablesHint": "Only whether a variable is set is shown – the values are never sent anywhere.",
     "concurrency": "Scan concurrency",
-    "concurrencyHint": "How many projects are scanned at the same time. Takes effect after the application restarts.",
+    "concurrencyHint": "How many projects are scanned at the same time. Takes effect within a few seconds, running scans are not interrupted.",
     "defaultCron": "Default cron for new targets",
     "defaultCronHint": "Empty = new targets have no schedule, manual runs only.",
     "retention": "History retention (days)",

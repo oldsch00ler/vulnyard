@@ -330,7 +330,20 @@ class Scanner:
             tags.append(f"source-group:{request.source_group_path}")
         await self._dtrack.merge_project_tags(project, tuple(tags))
 
-        await self._dtrack.refresh_project_metrics(project.uuid)
+        # The notification and the delta baseline read these metrics right after
+        # the scan, so they must already include this BOM.
+        try:
+            fresh = await self._dtrack.refresh_project_metrics_and_wait(
+                project.uuid, should_stop=lambda: request.job_id in self._cancelled
+            )
+        except ProcessingAborted as error:
+            raise ScanCancelled from error
+        if not fresh:
+            logger.warning(
+                "Metrics of %s@%s were not refreshed in time; a notification may use older numbers",
+                request.project.path_with_namespace,
+                request.branch,
+            )
 
     # --- subprocess helpers --------------------------------------------------
 

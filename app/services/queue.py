@@ -3,8 +3,9 @@
 """Scan worker over the `scan_jobs` table (SPEC section 8).
 
 The table is the queue: jobs are claimed with `FOR UPDATE SKIP LOCKED`, so a
-job is never picked twice, and the number of parallel scans is limited by a
-semaphore. A job that is interrupted by a restart is failed during recovery.
+job is never picked twice, and the number of parallel scans is limited by the
+stored setting, read again on every pass so a change applies without a restart.
+A job that is interrupted by a restart is failed during recovery.
 """
 
 from __future__ import annotations
@@ -35,7 +36,11 @@ from app.i18n import t
 from app.models import MetricSnapshot, Project, ScanJob, ScanRun, ScanTarget, TargetProject
 from app.services import runs as run_service
 from app.services.dashboard import invalidate_cache
-from app.services.app_settings import get_notification_config, should_send_alert
+from app.services.app_settings import (
+    get_notification_config,
+    get_scan_concurrency,
+    should_send_alert,
+)
 from app.services.dtrack import DependencyTrackClient
 from app.services.ignores import apply_rules as apply_ignore_rules
 from app.services.snapshots import take_snapshot
@@ -85,7 +90,8 @@ class ScanWorker:
         self._dtrack = dtrack
         self._trivy_available = trivy_available
         self._notifier = notifier
-        self._semaphore = asyncio.Semaphore(max(1, settings.scan_concurrency))
+        # Refreshed from the database before every dispatch.
+        self._concurrency = max(1, settings.scan_concurrency)
         self._wakeup = asyncio.Event()
         self._tasks: dict[int, asyncio.Task[None]] = {}
         self._loop_task: asyncio.Task[None] | None = None
@@ -101,6 +107,11 @@ class ScanWorker:
     @property
     def running(self) -> bool:
         return self._running
+
+    @property
+    def concurrency(self) -> int:
+        """Parallel scans allowed, as last read from the settings."""
+        return self._concurrency
 
     @property
     def active_jobs(self) -> int:
@@ -126,11 +137,10 @@ class ScanWorker:
             return
         assert self._dtrack is not None  # noqa: S101 - checked above
         self._scanner = Scanner(self._settings, self._dtrack, on_status=self._set_job_status)
+        await self._load_concurrency()
         self._running = True
         self._loop_task = asyncio.create_task(self._loop(), name="vulnyard-scan-worker")
-        logger.info(
-            "Scan worker started (concurrency %s)", max(1, self._settings.scan_concurrency)
-        )
+        logger.info("Scan worker started (concurrency %s)", self._concurrency)
 
     async def stop(self) -> None:
         self._running = False
@@ -214,13 +224,17 @@ class ScanWorker:
                 pass
 
     async def _dispatch_available(self) -> int:
-        """Claim and start as many jobs as the concurrency limit allows."""
+        """Claim and start as many jobs as the concurrency limit allows.
+
+        Lowering the limit never stops running jobs; new ones simply wait until
+        fewer than the new limit are running.
+        """
+        await self._load_concurrency()
         started = 0
-        while self._running and not self._semaphore.locked():
+        while self._running and len(self._tasks) < self._concurrency:
             job_id = await self._claim_job()
             if job_id is None:
                 return started
-            await self._semaphore.acquire()
             task = asyncio.create_task(self._process(job_id), name=f"vulnyard-scan-job-{job_id}")
             self._tasks[job_id] = task
             task.add_done_callback(lambda _task, job_id=job_id: self._finish_task(job_id))
@@ -229,8 +243,19 @@ class ScanWorker:
 
     def _finish_task(self, job_id: int) -> None:
         self._tasks.pop(job_id, None)
-        self._semaphore.release()
         self._wakeup.set()
+
+    async def _load_concurrency(self) -> None:
+        """Read the limit from the settings; keep the last one if that fails."""
+        try:
+            async with self._sessions() as session:
+                limit = await get_scan_concurrency(session, self._settings.scan_concurrency)
+        except Exception:  # noqa: BLE001 - a settings read must not stop scanning
+            logger.warning("Could not read the scan concurrency, keeping %s", self._concurrency)
+            return
+        if limit != self._concurrency:
+            logger.info("Scan concurrency changed from %s to %s", self._concurrency, limit)
+            self._concurrency = limit
 
     async def _claim_job(self) -> int | None:
         """Take the oldest queued job; SKIP LOCKED keeps claims exclusive."""
@@ -500,9 +525,16 @@ class ScanWorker:
 
             # A target with its own webhook sends even when the global switch is
             # off; that is the point of setting it per target.
-            if not webhook or (not enabled and not (target and target.notify_webhook_url)):
-                logger.debug(
-                    "No chat message for %s@%s: notifications are off or no webhook is set",
+            if not webhook:
+                logger.info(
+                    "No chat message for %s@%s: no webhook is set",
+                    project.path_with_namespace,
+                    project.branch,
+                )
+                return
+            if not enabled and not (target and target.notify_webhook_url):
+                logger.info(
+                    "No chat message for %s@%s: notifications are turned off in the settings",
                     project.path_with_namespace,
                     project.branch,
                 )

@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 Lukáš Zuzaňák <lukas@zuzanak.eu>
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ApiError } from '../api/client'
 import {
-  type SettingsPatch,
+  type AppSettings,
   useAppSettings,
   useConnectionTest,
   useSaveSettings,
@@ -26,13 +26,16 @@ import ApiTokensSection from '../components/ApiTokensSection'
 import ChipInput from '../components/ChipInput'
 import IgnoreRuleForm from '../components/IgnoreRuleForm'
 import IgnoreRulesTable from '../components/IgnoreRulesTable'
+import { compactSecondaryButton, primaryButton, smallButton } from '../lib/buttons'
 import { formatDateTime } from '../lib/format'
 
 export default function Settings() {
   const { t, i18n } = useTranslation()
   const { data: status } = useStatus()
   const { data: settings, isLoading, isError, error } = useAppSettings()
-  const save = useSaveSettings()
+  // One per section, so each shows its own result next to its own button.
+  const saveScanning = useSaveSettings()
+  const saveNotifications = useSaveSettings()
   const testSource = useConnectionTest('source')
   const testDtrack = useConnectionTest('dtrack')
   const testWebhook = useWebhookTest()
@@ -50,34 +53,53 @@ export default function Settings() {
   const [webhook, setWebhook] = useState('')
   const [minSeverity, setMinSeverity] = useState('high')
 
-  useEffect(() => {
-    if (!settings) {
-      return
-    }
-    setConcurrency(settings.scan_concurrency)
-    setCron(settings.default_schedule_cron ?? '')
-    setRetention(settings.history_retention_days)
-    setPatterns(settings.global_exclude_patterns)
-    setNotifyEnabled(settings.notifications.enabled)
-    setMinSeverity(settings.notifications.min_severity)
+  const loadScanning = (stored: AppSettings) => {
+    setConcurrency(stored.scan_concurrency)
+    setCron(stored.default_schedule_cron ?? '')
+    setRetention(stored.history_retention_days)
+    setPatterns(stored.global_exclude_patterns)
+  }
+
+  const loadNotifications = (stored: AppSettings) => {
+    setNotifyEnabled(stored.notifications.enabled)
+    setMinSeverity(stored.notifications.min_severity)
     // The stored webhook never comes back in full, so the field starts empty
     // and an empty field means "keep what is stored".
     setWebhook('')
+  }
+
+  // Filled once; afterwards each section reloads only what it saved, so saving
+  // one section never throws away unsaved edits in the other.
+  const loaded = useRef(false)
+  useEffect(() => {
+    if (settings && !loaded.current) {
+      loaded.current = true
+      loadScanning(settings)
+      loadNotifications(settings)
+    }
   }, [settings])
 
-  const submit = () => {
-    const patch: SettingsPatch = {
-      scan_concurrency: concurrency,
-      default_schedule_cron: cron.trim() ? cron.trim() : null,
-      history_retention_days: retention,
-      global_exclude_patterns: patterns,
-      notifications_enabled: notifyEnabled,
-      notification_min_severity: minSeverity,
-    }
-    if (webhook.trim()) {
-      patch.notification_webhook_url = webhook.trim()
-    }
-    save.mutate(patch)
+  const submitScanning = () => {
+    saveScanning.mutate(
+      {
+        scan_concurrency: concurrency,
+        default_schedule_cron: cron.trim() ? cron.trim() : null,
+        history_retention_days: retention,
+        global_exclude_patterns: patterns,
+      },
+      { onSuccess: loadScanning },
+    )
+  }
+
+  const submitNotifications = () => {
+    saveNotifications.mutate(
+      {
+        notifications_enabled: notifyEnabled,
+        notification_min_severity: minSeverity,
+        ...(webhook.trim() ? { notification_webhook_url: webhook.trim() } : {}),
+      },
+      { onSuccess: loadNotifications },
+    )
   }
 
   const inputClass =
@@ -115,7 +137,7 @@ export default function Settings() {
             type="button"
             onClick={() => testSource.mutate()}
             disabled={testSource.isPending}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium disabled:opacity-40 dark:border-slate-700"
+            className={compactSecondaryButton}
           >
             {testSource.isPending ? t('common.loading') : t('settings.test.run')}
           </button>
@@ -151,7 +173,7 @@ export default function Settings() {
             type="button"
             onClick={() => testDtrack.mutate()}
             disabled={testDtrack.isPending}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium disabled:opacity-40 dark:border-slate-700"
+            className={compactSecondaryButton}
           >
             {testDtrack.isPending ? t('common.loading') : t('settings.test.run')}
           </button>
@@ -232,23 +254,12 @@ export default function Settings() {
             onChange={setPatterns}
           />
 
-          {save.isError && (
-            <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-100">
-              {save.error instanceof ApiError ? save.error.message : String(save.error)}
-            </p>
-          )}
-          {save.isSuccess && (
-            <p className="text-xs text-emerald-700 dark:text-emerald-300">{t('settings.saved')}</p>
-          )}
-
-          <button
-            type="button"
-            onClick={submit}
-            disabled={save.isPending}
-            className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-40 dark:bg-slate-100 dark:text-slate-900"
-          >
-            {save.isPending ? t('common.loading') : t('common.save')}
-          </button>
+          <SaveRow
+            pending={saveScanning.isPending}
+            saved={saveScanning.isSuccess}
+            error={saveScanning.error}
+            onSave={submitScanning}
+          />
         </section>
       )}
 
@@ -266,7 +277,7 @@ export default function Settings() {
               type="button"
               onClick={() => testWebhook.mutate(undefined)}
               disabled={testWebhook.isPending}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium disabled:opacity-40 dark:border-slate-700"
+              className={compactSecondaryButton}
             >
               {testWebhook.isPending ? t('common.loading') : t('settings.notifications.test')}
             </button>
@@ -275,9 +286,11 @@ export default function Settings() {
           {testWebhook.data && (
             <p
               className={`rounded-md border px-3 py-2 text-xs ${
-                testWebhook.data.ok
-                  ? 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-100'
-                  : 'border-red-300 bg-red-50 text-red-900 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-100'
+                testWebhook.data.ok && testWebhook.data.code
+                  ? 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100'
+                  : testWebhook.data.ok
+                    ? 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-100'
+                    : 'border-red-300 bg-red-50 text-red-900 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-100'
               }`}
             >
               {testWebhook.data.detail}
@@ -335,6 +348,13 @@ export default function Settings() {
               ))}
             </select>
           </label>
+
+          <SaveRow
+            pending={saveNotifications.isPending}
+            saved={saveNotifications.isSuccess}
+            error={saveNotifications.error}
+            onSave={submitNotifications}
+          />
         </section>
       )}
 
@@ -342,12 +362,12 @@ export default function Settings() {
       <section className="rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
           <h2 className="text-sm font-semibold">{t('ignores.title')}</h2>
-          <span className="flex gap-3">
+          <span className="flex gap-2">
             <button
               type="button"
               onClick={() => applyRules.mutate()}
               disabled={applyRules.isPending}
-              className="text-xs underline hover:no-underline disabled:opacity-40"
+              className={smallButton}
             >
               {t('ignores.applyNow')}
             </button>
@@ -357,7 +377,7 @@ export default function Settings() {
                 createRule.reset()
                 setRuleFormOpen((open) => !open)
               }}
-              className="text-xs underline hover:no-underline"
+              className={smallButton}
             >
               {ruleFormOpen ? t('common.cancel') : t('ignores.add')}
             </button>
@@ -500,5 +520,37 @@ export default function Settings() {
 
       <p className="text-xs text-slate-500 dark:text-slate-500">{t('settings.timezoneHint')}</p>
     </section>
+  )
+}
+
+/** Save button of one section with that section's own result. */
+function SaveRow({
+  pending,
+  saved,
+  error,
+  onSave,
+}: {
+  pending: boolean
+  saved: boolean
+  error: Error | null
+  onSave: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-2 border-t border-slate-200 pt-3 dark:border-slate-800">
+      {error && (
+        <p className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-100">
+          {error instanceof ApiError ? error.message : String(error)}
+        </p>
+      )}
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={onSave} disabled={pending} className={primaryButton}>
+          {pending ? t('common.saving') : t('common.save')}
+        </button>
+        {saved && !pending && (
+          <span className="text-xs text-emerald-700 dark:text-emerald-300">{t('settings.saved')}</span>
+        )}
+      </div>
+    </div>
   )
 }

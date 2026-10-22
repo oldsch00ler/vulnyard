@@ -44,7 +44,7 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 
 logger = logging.getLogger(__name__)
 
-MAX_CONCURRENCY = 16
+MAX_CONCURRENCY = app_settings.MAX_SCAN_CONCURRENCY
 MIN_RETENTION_DAYS = 1
 MAX_RETENTION_DAYS = 3650
 MAX_PATTERNS = 50
@@ -60,6 +60,7 @@ REPORTED_VARIABLES = (
     ("AUTH_MODE", False),
     ("AUTH_HEADERS", False),
     ("CA_BUNDLE", False),
+    ("KEV_FEED_URL", False),
     ("TRIVY_BIN", False),
     ("TRIVY_OFFLINE", False),
     ("TZ", False),
@@ -72,9 +73,7 @@ REPORTED_VARIABLES = (
 async def read_settings(session: SessionDep, settings: SettingsDep) -> SettingsRead:
     """Settings editable in the UI, with the environment defaults as fallback."""
     return SettingsRead(
-        scan_concurrency=await app_settings.get_value(
-            session, app_settings.KEY_SCAN_CONCURRENCY, settings.scan_concurrency
-        ),
+        scan_concurrency=await app_settings.get_scan_concurrency(session, settings.scan_concurrency),
         default_schedule_cron=await app_settings.get_value(
             session, app_settings.KEY_DEFAULT_SCHEDULE_CRON, None
         ),
@@ -96,7 +95,7 @@ async def write_settings(
     settings: SettingsDep,
     identity: AuditIdentityDep,
 ) -> SettingsRead:
-    """Store the settings; a changed concurrency applies after a restart."""
+    """Store the settings; the worker picks up a changed concurrency on its next pass."""
     data = payload.model_dump(exclude_unset=True)
 
     if "scan_concurrency" in data and data["scan_concurrency"] is not None:
@@ -172,11 +171,14 @@ async def test_webhook(
     target_id: int | None = Query(default=None),
 ) -> ConnectionTestResult:
     """Send a test message to the global webhook, or to a target's own one."""
-    _, global_webhook, _ = await app_settings.get_notification_config(session)
+    enabled, global_webhook, _ = await app_settings.get_notification_config(session)
 
     webhook = global_webhook
+    # Only the global webhook depends on the switch; a target's own one always sends.
+    own_webhook = False
     if target_id is not None:
         target = await target_service.get_target(session, target_id)
+        own_webhook = bool(target.notify_webhook_url)
         webhook = target.notify_webhook_url or global_webhook
 
     if not webhook:
@@ -188,6 +190,14 @@ async def test_webhook(
     except NotificationError as error:
         return ConnectionTestResult(
             ok=False, code="notify.failed", detail=t("notify.failed", locale, detail=str(error))
+        )
+    if not enabled and not own_webhook:
+        # The test always sends, scans do not: say so, or a passing test hides
+        # why nothing arrives after a scan.
+        return ConnectionTestResult(
+            ok=True,
+            code="settings.notifications.sent_but_disabled",
+            detail=t("settings.notifications.sent_but_disabled", locale),
         )
     return ConnectionTestResult(ok=True, detail=t("settings.notifications.sent", locale))
 
@@ -270,6 +280,7 @@ def _environment(settings) -> EnvironmentOverview:  # noqa: ANN001 - Settings
         "AUTH_MODE": settings.auth_mode,
         "AUTH_HEADERS": settings.auth_headers,
         "CA_BUNDLE": settings.ca_bundle,
+        "KEV_FEED_URL": settings.kev_feed_url,
         "TRIVY_BIN": settings.trivy_bin,
         "TRIVY_OFFLINE": str(settings.trivy_offline).lower(),
         "TZ": settings.tz,

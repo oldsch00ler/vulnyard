@@ -222,3 +222,51 @@ async def test_cancelling_during_processing_stops_the_job(
 
     # The BOM was already uploaded; only our waiting stopped.
     assert len(dtrack.uploads) == 1
+
+
+async def test_metrics_refresh_waits_until_dependency_track_recomputed() -> None:
+    """The refresh only requests a computation; the new lastOccurrence says it ran."""
+    from datetime import UTC, datetime
+
+    from app.services.dtrack import DependencyTrackClient, DTMetrics
+
+    client = DependencyTrackClient(
+        Settings(dt_api_url="https://dtrack.example.com", dt_api_key="odt_testkey_1234567890")
+    )
+    old = datetime(2026, 1, 1, tzinfo=UTC)
+    new = datetime(2026, 1, 2, tzinfo=UTC)
+    answers = [DTMetrics(high=0, last_occurrence=old)] * 3 + [DTMetrics(high=2, last_occurrence=new)]
+    reads: list[str] = []
+    refreshed: list[str] = []
+
+    async def current(uuid: str) -> DTMetrics:
+        reads.append(uuid)
+        return answers[min(len(reads) - 1, len(answers) - 1)]
+
+    async def refresh(uuid: str) -> None:
+        refreshed.append(uuid)
+
+    client.current_project_metrics = current  # type: ignore[method-assign]
+    client.refresh_project_metrics = refresh  # type: ignore[method-assign]
+    try:
+        assert await client.refresh_project_metrics_and_wait("p", poll_interval_seconds=0) is True
+        # Baseline, two stale polls, then the fresh one.
+        assert len(reads) == 4
+        assert refreshed == ["p"]
+
+        # A new project has no metrics until the first computation finishes.
+        reads.clear()
+        answers[:] = [None, None, DTMetrics(high=1, last_occurrence=new)]  # type: ignore[list-item]
+        assert await client.refresh_project_metrics_and_wait("p", poll_interval_seconds=0) is True
+        assert len(reads) == 3
+
+        # Never recomputed: give up after the timeout instead of hanging.
+        answers[:] = [DTMetrics(last_occurrence=old)]
+        assert (
+            await client.refresh_project_metrics_and_wait(
+                "p", poll_interval_seconds=0.01, timeout_seconds=0.05
+            )
+            is False
+        )
+    finally:
+        await client.close()

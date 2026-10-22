@@ -3,15 +3,14 @@
 
 import { Fragment, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
 
 import { ApiError } from '../api/client'
 import { SEVERITIES } from '../api/dashboard'
-import { useCreateIgnoreRule, type IgnoreRulePayload } from '../api/ignores'
 import { useStatus } from '../api/status'
-import { useAffectedProjects, useVulnerabilities } from '../api/vulnerabilities'
-import IgnoreRuleForm from '../components/IgnoreRuleForm'
+import { useVulnerabilities } from '../api/vulnerabilities'
 import { SeverityLabel } from '../components/SeverityBadges'
+import VulnerabilityDetail from '../components/VulnerabilityDetail'
+import { smallButton } from '../lib/buttons'
 import { formatDateTime } from '../lib/format'
 
 export default function Vulnerabilities() {
@@ -29,8 +28,6 @@ export default function Vulnerabilities() {
     page,
     includeIgnored,
   )
-  const affected = useAffectedProjects(expanded?.source ?? null, expanded?.vulnId ?? null)
-  const createRule = useCreateIgnoreRule()
   const { data: status } = useStatus()
   const dtUiUrl = status?.runtime.dt_ui_url ?? null
 
@@ -173,7 +170,7 @@ export default function Vulnerabilities() {
                                 )
                               }
                               aria-expanded={isOpen}
-                              className="text-xs underline hover:no-underline"
+                              className={smallButton}
                             >
                               {isOpen
                                 ? t('vulnerabilities.hideProjects')
@@ -182,7 +179,6 @@ export default function Vulnerabilities() {
                             <button
                               type="button"
                               onClick={() => {
-                                createRule.reset()
                                 setIgnoring(isIgnoringThis ? null : item.vuln_id)
                                 // The pattern suggestions come from the affected
                                 // components, so the row has to be open.
@@ -190,7 +186,7 @@ export default function Vulnerabilities() {
                                   setExpanded({ source: item.source, vulnId: item.vuln_id })
                                 }
                               }}
-                              className="text-xs underline hover:no-underline"
+                              className={smallButton}
                             >
                               {t('ignores.ignore')}
                             </button>
@@ -200,86 +196,12 @@ export default function Vulnerabilities() {
                       {isOpen && (
                         <tr className="bg-slate-50 dark:bg-slate-900/60">
                           <td colSpan={6} className="px-3 py-2">
-                            {affected.isLoading && (
-                              <p className="text-xs text-slate-600 dark:text-slate-400">
-                                {t('common.loading')}
-                              </p>
-                            )}
-                            {affected.data && affected.data.items.length === 0 && (
-                              <p className="text-xs text-slate-600 dark:text-slate-400">
-                                {t('vulnerabilities.notInOurProjects', { count: affected.data.total })}
-                              </p>
-                            )}
-                            {isIgnoringThis && (
-                              <div className="mb-3 max-w-2xl">
-                                <IgnoreRuleForm
-                                  vulnId={item.vuln_id}
-                                  suggestions={componentPurls(affected.data?.components)}
-                                  submitting={createRule.isPending}
-                                  error={
-                                    createRule.error instanceof ApiError
-                                      ? createRule.error.message
-                                      : createRule.error
-                                        ? String(createRule.error)
-                                        : null
-                                  }
-                                  onSubmit={(payload: IgnoreRulePayload) =>
-                                    createRule.mutate(payload, {
-                                      onSuccess: () => setIgnoring(null),
-                                    })
-                                  }
-                                  onCancel={() => setIgnoring(null)}
-                                />
-                              </div>
-                            )}
-                            {affected.data && affected.data.components.length > 0 && (
-                              <p className="mb-1 text-[11px] font-medium uppercase text-slate-500 dark:text-slate-400">
-                                {t('vulnerabilities.components')}
-                              </p>
-                            )}
-                            {affected.data && affected.data.components.length > 0 && (
-                              <ul className="mb-3 space-y-1">
-                                {affected.data.components.map((component) => (
-                                  <li
-                                    key={`${component.project_id}-${component.purl ?? component.component_name}`}
-                                    className="text-xs"
-                                  >
-                                    <code>{component.purl ?? component.component_name}</code>
-                                    <span className="text-slate-500 dark:text-slate-400">
-                                      {' · '}
-                                      <code>{component.path_with_namespace}</code>
-                                      {component.suppressed && (
-                                        <span className="ml-2">{t('ignores.badge')}</span>
-                                      )}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                            {affected.data && affected.data.items.length > 0 && (
-                              <ul className="space-y-1">
-                                {affected.data.items.map((project) => (
-                                  <li key={project.dt_project_uuid} className="text-xs">
-                                    {project.project_id ? (
-                                      <Link
-                                        to={`/projects/${project.project_id}`}
-                                        className="underline hover:no-underline"
-                                      >
-                                        <code>{project.path_with_namespace}</code>
-                                      </Link>
-                                    ) : (
-                                      <code>{project.dt_name}</code>
-                                    )}
-                                    {(project.branch ?? project.dt_version) && (
-                                      <span className="text-slate-500 dark:text-slate-400">
-                                        {' · '}
-                                        <code>{project.branch ?? project.dt_version}</code>
-                                      </span>
-                                    )}
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
+                            <VulnerabilityDetail
+                              source={item.source}
+                              vulnId={item.vuln_id}
+                              ignoring={isIgnoringThis}
+                              onIgnoreClose={() => setIgnoring(null)}
+                            />
                           </td>
                         </tr>
                       )}
@@ -299,7 +221,7 @@ export default function Vulnerabilities() {
                 type="button"
                 disabled={page <= 1}
                 onClick={() => setPage((value) => value - 1)}
-                className="underline hover:no-underline disabled:opacity-40"
+                className={smallButton}
               >
                 {t('common.previous')}
               </button>
@@ -307,7 +229,7 @@ export default function Vulnerabilities() {
                 type="button"
                 disabled={page * data.page_size >= data.total}
                 onClick={() => setPage((value) => value + 1)}
-                className="underline hover:no-underline disabled:opacity-40"
+                className={smallButton}
               >
                 {t('common.next')}
               </button>
@@ -317,9 +239,4 @@ export default function Vulnerabilities() {
       )}
     </section>
   )
-}
-
-/** Distinct purls of the affected components, for the pattern suggestions. */
-function componentPurls(components?: { purl: string | null }[]): string[] {
-  return [...new Set((components ?? []).map((one) => one.purl).filter((purl): purl is string => Boolean(purl)))]
 }

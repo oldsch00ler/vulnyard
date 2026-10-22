@@ -42,7 +42,7 @@ pipelines, no merge requests.
 [Quick start](#quick-start-docker) · [Configuration](#configuration) ·
 [How scanning works](#how-scanning-works) · [Chat notifications](#chat-notifications) ·
 [Ignoring vulnerabilities](#ignoring-vulnerabilities) · [API and tokens](#api-and-tokens) ·
-[Sign-in and security](#sign-in-and-security) · [Languages](#languages-and-translations) ·
+[MCP](#mcp-for-coding-agents) · [Sign-in and security](#sign-in-and-security) · [Languages](#languages-and-translations) ·
 [Development](#development) · [Contributing](#contributing) · [License](#license)
 
 ## Features
@@ -60,6 +60,10 @@ pipelines, no merge requests.
   projects, a project list with filters, project detail with findings and
   history, and an overview of vulnerabilities across projects ("where do we have
   CVE-XXXX?").
+- **Threats** – the vulnerabilities to fix first: those attackers are known to
+  exploit (the CISA KEV catalog, matched through aliases, so a GHSA finding counts
+  too), those likely to be exploited soon (EPSS from Dependency-Track) and new
+  critical or high ones. Ordered by that evidence rather than by severity alone.
 - **Chat notifications** – after a scan that finds vulnerabilities, Vulnyard
   posts a message to a webhook (Google Chat) with the repository, finding counts
   by severity and the **repository maintainers**. The webhook is set globally and
@@ -70,6 +74,8 @@ pipelines, no merge requests.
   date. The suppression is sent to Dependency-Track as well.
 - **Operations** – run history with errors per job, manual runs, cancelling a
   run, scheduler, history retention, connection tests in Settings.
+- **MCP for coding agents** – developers ask from Claude Code, Cursor or VS Code
+  ("what does this repository have, where do we use CVE-X?"); read-only.
 - **REST API with tokens** – everything in the UI is available through the API,
   so another system can, for example, create scan targets on its own.
 - **Multilingual interface** – Czech and English; another language is one
@@ -147,6 +153,7 @@ default cron, history retention, global exclusions and chat notifications.
 | `SCAN_CONCURRENCY`, `SCAN_TIMEOUT_SECONDS` | scan concurrency and the timeout of one scan |
 | `TRIVY_BIN`, `TRIVY_OFFLINE` | path to Trivy and offline mode |
 | `CA_BUNDLE` | PEM with a custom CA for HTTP calls, git and Trivy |
+| `KEV_FEED_URL` | CISA catalog of known exploited vulnerabilities for the Threats page (default: the CISA feed); empty turns it off |
 | `TZ`, `DEFAULT_LOCALE`, `LOG_LEVEL` | time zone, default language (`cs`, `en`, …), log level |
 
 Only `DATABASE_URL` is required. Without the GitLab and Dependency-Track
@@ -343,7 +350,8 @@ Rules:
 
 - changes made with a token are recorded in the audit fields (`updated_by`,
   `triggered_by`, `created_by`) as `token:<name>`,
-- a "read only" token may only use `GET`, anything else gets `403`,
+- a "read only" token may only use `GET`, anything else gets `403` (the MCP
+  endpoint is the exception: it only reads),
 - an invalid, deleted or expired token gets `401`,
 - tokens can be created and deleted only by a person in the UI, never by another
   token,
@@ -352,6 +360,83 @@ Rules:
   apart.
 
 The next section describes how tokens behave in the sign-in modes.
+
+## MCP for coding agents
+
+Developers can ask Vulnyard from their coding agent – Claude Code, Cursor, VS Code
+and any other MCP client. The application serves an MCP endpoint at **`/mcp`**
+(Streamable HTTP), so there is nothing to install: add the URL and a token.
+
+It is **read-only by design**: no tool starts a scan, ignores a finding or
+changes anything, whatever the token's permission. What the agent can ask:
+
+| Tool | Answers |
+|---|---|
+| `list_projects` | Which repositories are scanned, with finding counts. |
+| `project_findings` | Vulnerabilities of a repository, worst first, with the newer version of each component as an upgrade hint. The repository can be given as `group/project` or as its git remote URL. |
+| `find_vulnerability` | Where we have a CVE (or GHSA…, aliases count): repositories, branches, components and versions, and whether it is known to be exploited. |
+| `current_threats` | What to fix first – the same selection as the Threats page. |
+| `scan_status` | When a repository was last scanned and why it failed. |
+
+Every call needs an API token, even with `AUTH_MODE=none` – it is also the
+record of who asked (`MCP … called by token <name>` in the log). Create one in
+**Settings → API tokens**; **read only** is enough.
+
+**Claude Code:**
+
+```bash
+claude mcp add --transport http vulnyard https://vulnyard.example.com/mcp \
+  --header "Authorization: Bearer vy_…"
+```
+
+For a whole team, commit `.mcp.json` to the repository and let everyone keep
+their token in an environment variable:
+
+```json
+{
+  "mcpServers": {
+    "vulnyard": {
+      "type": "http",
+      "url": "https://vulnyard.example.com/mcp",
+      "headers": { "Authorization": "Bearer ${VULNYARD_TOKEN}" }
+    }
+  }
+}
+```
+
+**Cursor** – `~/.cursor/mcp.json` (the token stays out of the repository):
+
+```json
+{
+  "mcpServers": {
+    "vulnyard": {
+      "url": "https://vulnyard.example.com/mcp",
+      "headers": { "Authorization": "Bearer vy_…" }
+    }
+  }
+}
+```
+
+**VS Code** – `.vscode/mcp.json`; VS Code asks for the token and stores it
+securely:
+
+```json
+{
+  "inputs": [
+    { "type": "promptString", "id": "vulnyard-token", "description": "Vulnyard API token", "password": true }
+  ],
+  "servers": {
+    "vulnyard": {
+      "type": "http",
+      "url": "https://vulnyard.example.com/mcp",
+      "headers": { "Authorization": "Bearer ${input:vulnyard-token}" }
+    }
+  }
+}
+```
+
+Then just ask: *"Which vulnerabilities does this repository have and what should
+I upgrade?"* or *"Do we use anything affected by CVE-2026-1234?"*
 
 ## Sign-in and security
 

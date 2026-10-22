@@ -26,6 +26,7 @@ KEY_NOTIFICATION_MIN_SEVERITY = "notification_min_severity"
 KEY_NOTIFICATION_LAST_ALERT = "notification_last_alert"
 
 DEFAULT_HISTORY_RETENTION_DAYS = 90
+MAX_SCAN_CONCURRENCY = 16
 
 
 async def get_value(session: AsyncSession, key: str, default: Any = None) -> Any:
@@ -41,6 +42,16 @@ async def set_value(session: AsyncSession, key: str, value: Any, updated_by: str
     else:
         setting.value = value
         setting.updated_by = updated_by
+
+
+async def get_scan_concurrency(session: AsyncSession, default: int) -> int:
+    """Number of parallel scans: the stored value, else the environment default."""
+    value = await get_value(session, KEY_SCAN_CONCURRENCY, default)
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        number = default
+    return min(max(1, number), MAX_SCAN_CONCURRENCY)
 
 
 async def get_notification_config(session: AsyncSession) -> tuple[bool, str | None, str]:

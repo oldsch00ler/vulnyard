@@ -14,6 +14,7 @@ from app.api import (
     source,
     status,
     targets,
+    threats,
     tokens,
     vulnerabilities,
 )
@@ -34,5 +35,6 @@ api_router.include_router(projects.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(ignores.router)
 api_router.include_router(vulnerabilities.router)
+api_router.include_router(threats.router)
 api_router.include_router(settings.router)
 api_router.include_router(tokens.router)

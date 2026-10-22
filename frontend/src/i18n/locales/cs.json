@@ -10,6 +10,7 @@
   },
   "nav": {
     "dashboard": "Přehled",
+    "threats": "Hrozby",
     "projects": "Projekty",
     "vulnerabilities": "Zranitelnosti",
     "targets": "Cíle skenování",
@@ -175,6 +176,64 @@
     },
     "ignoredOnly": "Všechny výskyty jsou ignorované.",
     "components": "Zasažené komponenty"
+  },
+  "threats": {
+    "title": "Hrozby",
+    "description": "Zranitelnosti v našich projektech, které je potřeba řešit nejdřív: aktivně zneužívané, pravděpodobně brzy zneužité, nebo nové a závažné. Samotná závažnost říká, jak zlé by to bylo, ne jestli to někdo využívá.",
+    "reason": {
+      "exploited": "Aktivně zneužívané",
+      "likely": "Pravděpodobně zneužité",
+      "new": "Nové a závažné"
+    },
+    "reasonHint": {
+      "exploited": "Jsou v katalogu CISA známých zneužívaných zranitelností (KEV).",
+      "likely": "EPSS aspoň {{epss}}: pravděpodobnost zneužití v příštích 30 dnech.",
+      "new": "Kritické nebo vysoké, v našich projektech poprvé za posledních {{days}} dní."
+    },
+    "badge": {
+      "exploited": "Zneužívaná",
+      "likely": "EPSS",
+      "new": "Nová"
+    },
+    "filter": {
+      "epss": "Pravděpodobně zneužité od",
+      "epssOption": "EPSS ≥ {{value}}",
+      "days": "Nové za posledních",
+      "daysOption_one": "{{count}} den",
+      "daysOption_few": "{{count}} dny",
+      "daysOption_many": "{{count}} dne",
+      "daysOption_other": "{{count}} dní",
+      "showAll": "Zobrazit všechny hrozby"
+    },
+    "table": {
+      "id": "Zranitelnost",
+      "why": "Proč",
+      "severity": "Závažnost",
+      "epss": "EPSS",
+      "kev": "CISA KEV",
+      "firstSeen": "Poprvé u nás",
+      "projects": "Projekty"
+    },
+    "percentile": "percentil {{value}}",
+    "kev": {
+      "added": "přidáno {{date}}",
+      "due": "termín CISA {{date}}",
+      "ransomware": "Používá ransomware",
+      "detailTitle": "CISA KEV: {{cve}}",
+      "requiredAction": "Požadovaný postup:"
+    },
+    "newerVersion": "Existuje novější verze komponenty",
+    "emptyTitle": "Žádné aktuální hrozby",
+    "emptyDescription": "Nic z našich projektů není známé jako zneužívané, pravděpodobně zneužitelné ani nové a závažné.",
+    "emptyFiltered": "Tomuto filtru nic neodpovídá.",
+    "pageInfo": "Celkem {{total}} hrozeb",
+    "notice": {
+      "kevDisabled": "Katalog CISA známých zneužívaných zranitelností je vypnutý (prázdné KEV_FEED_URL), takže aktivně zneužívané zranitelnosti se nerozpoznají.",
+      "kevUnavailable": "Katalog CISA známých zneužívaných zranitelností se nepodařilo stáhnout, takže aktivně zneužívané zranitelnosti se teď nerozpoznají. Další pokus proběhne do hodiny.",
+      "kevStale": "Poslední aktualizace katalogu CISA selhala; používá se kopie z {{date}}.",
+      "epssMissing": "Dependency-Track neposílá skóre EPSS, takže „pravděpodobně zneužité“ zůstane prázdné. Zapni v Dependency-Tracku stahování EPSS.",
+      "kevSource": "Katalog CISA známých zneužívaných zranitelností: {{entries}} záznamů, vydán {{date}}."
+    }
   },
   "targets": {
     "title": "Cíle skenování",
@@ -386,7 +445,7 @@
     "variables": "Proměnné prostředí",
     "variablesHint": "Ukazuje se jen to, jestli je proměnná nastavená – hodnoty se nikam neposílají.",
     "concurrency": "Souběh skenů",
-    "concurrencyHint": "Kolik projektů se skenuje současně. Změna se projeví po restartu aplikace.",
+    "concurrencyHint": "Kolik projektů se skenuje současně. Změna se projeví během několika sekund, běžící skeny se nepřeruší.",
     "defaultCron": "Výchozí cron pro nové cíle",
     "defaultCronHint": "Prázdné = nové cíle budou bez plánu, jen ruční.",
     "retention": "Retence historie (dny)",

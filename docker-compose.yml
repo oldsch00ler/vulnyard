@@ -23,7 +23,8 @@ services:
         required: false
     environment:
       PORT: 8000
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://vulnyard:vulnyard@postgres:5432/vulnyard}
+      # Built from the POSTGRES_* credentials of the bundled database below.
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${POSTGRES_USER:-vulnyard}:${POSTGRES_PASSWORD:-vulnyard}@postgres:5432/${POSTGRES_DB:-vulnyard}}
       TZ: ${TZ:-UTC}
     depends_on:
       postgres:

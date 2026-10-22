@@ -20,6 +20,7 @@ import {
 } from '../api/targets'
 import PreviewPanel from '../components/PreviewPanel'
 import TargetForm from '../components/TargetForm'
+import { primaryButton, smallButton, smallDangerButton } from '../lib/buttons'
 import { describeCron } from '../lib/cron'
 
 export default function Targets() {
@@ -72,7 +73,7 @@ export default function Targets() {
               setEditing(undefined)
               setFormOpen(true)
             }}
-            className="rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white dark:bg-slate-100 dark:text-slate-900"
+            className={primaryButton}
           >
             {t('targets.add')}
           </button>
@@ -188,8 +189,8 @@ export default function Targets() {
                         onClick={() => updateTarget.mutate({ id: target.id, enabled: !target.enabled })}
                         className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                           target.enabled
-                            ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-100'
-                            : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+                            ? 'bg-emerald-100 text-emerald-900 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-100 dark:hover:bg-emerald-500/30'
+                            : 'bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
                         }`}
                       >
                         {target.enabled ? t('targets.table.enabled') : t('targets.table.disabled')}
@@ -201,7 +202,7 @@ export default function Targets() {
                           type="button"
                           onClick={() => scanTarget.mutate({ targetId: target.id })}
                           disabled={scanTarget.isPending}
-                          className="text-xs font-medium underline hover:no-underline disabled:opacity-40"
+                          className={smallButton}
                         >
                           {t('targets.scanNow')}
                         </button>
@@ -211,7 +212,7 @@ export default function Targets() {
                             setEditing(target)
                             setFormOpen(true)
                           }}
-                          className="text-xs underline hover:no-underline"
+                          className={smallButton}
                         >
                           {t('common.edit')}
                         </button>
@@ -222,14 +223,14 @@ export default function Targets() {
                               onClick={() =>
                                 deleteTarget.mutate(target.id, { onSuccess: () => setConfirmDelete(null) })
                               }
-                              className="text-xs font-medium text-red-700 underline hover:no-underline dark:text-red-300"
+                              className={smallDangerButton}
                             >
                               {t('targets.confirmDelete')}
                             </button>
                             <button
                               type="button"
                               onClick={() => setConfirmDelete(null)}
-                              className="text-xs underline hover:no-underline"
+                              className={smallButton}
                             >
                               {t('common.cancel')}
                             </button>
@@ -238,7 +239,7 @@ export default function Targets() {
                           <button
                             type="button"
                             onClick={() => setConfirmDelete(target.id)}
-                            className="text-xs underline hover:no-underline"
+                            className={smallButton}
                           >
                             {t('common.delete')}
                           </button>

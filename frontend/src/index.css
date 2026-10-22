@@ -22,6 +22,13 @@
   --color-chart-surface: #ffffff;
 }
 
+/* Tailwind 4 leaves buttons with the default arrow; a hand says "clickable". */
+@layer base {
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
 html,
 body,
 #root {

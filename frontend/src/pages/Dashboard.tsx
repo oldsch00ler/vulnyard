@@ -111,7 +111,7 @@ export default function Dashboard() {
                       className={`rounded-md px-2 py-1 text-xs font-medium ${
                         days === window
                           ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
-                          : 'border border-slate-300 dark:border-slate-700'
+                          : 'border border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800'
                       }`}
                     >
                       {t('dashboard.trend.days', { count: window })}
