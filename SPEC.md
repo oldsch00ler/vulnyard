@@ -417,11 +417,17 @@ kterých je důvod jednat hned:
 - **Aktivně zneužívané:** zranitelnost je v katalogu CISA KEV (Known Exploited
   Vulnerabilities). Katalog zná jen CVE, kdežto DT často hlásí GHSA/OSV id – páruje
   se proto i přes aliasy nálezu (`vulnerability.aliases` v `/finding/project/{uuid}`).
-- **Pravděpodobně zneužité:** EPSS z DT je aspoň zvolený práh (výchozí 10 %). DT ho
-  posílá jen se zapnutým stahováním EPSS; bez něj stránka upozorní.
+- **Pravděpodobně zneužité:** EPSS z DT je aspoň zvolený práh (výchozí 10 %). DT
+  ukládá stažené EPSS **jen k zranitelnostem ze zdroje NVD**, takže nález hlášený
+  pod GHSA/OSV vlastní EPSS nemá. Aplikace ho proto dočte ze záznamu NVD jeho CVE
+  aliasu (`GET /api/v1/vulnerability/source/NVD/vuln/{cve}`, oprávnění
+  `VIEW_PORTFOLIO`), s cache na den včetně „nemá skóre“. Platí i pro nálezy projektu
+  a MCP. Bez zrcadlení NVD v DT EPSS není a stránka upozorní.
 - **Nové a závažné:** kritické nebo vysoké, poprvé přiřazené některému našemu
   projektu (`attribution.attributedOn`, nejstarší z projektů) za posledních N dní
-  (výchozí 7).
+  (výchozí 7). Rozhoduje nejstarší výskyt; nález přiřazený do dne od chvíle, kdy
+  aplikace projekt objevila (`projects.first_seen_at`), je z prvního skenu a novinka
+  to není.
 
 Řazení podle síly důkazu: zneužívané (s ransomwarem první), pak EPSS, závažnost a
 stáří. Katalog KEV se stahuje z `KEV_FEED_URL` líně, nejvýš jednou denně, drží se v

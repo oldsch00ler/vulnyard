@@ -38,6 +38,7 @@ from app.schemas import (
 )
 from app.services import dashboard as dashboard_service
 from app.services import overrides as override_service
+from app.services import epss
 from app.services import runs as run_service
 from app.services.dashboard import SEVERITIES, SEVERITY_ORDER, ProjectRow
 from app.services.dtrack import DTFinding
@@ -146,6 +147,7 @@ async def read_findings(
         raise NotFoundError("project.not_scanned_yet", id=project_id)
 
     findings = await dtrack.project_findings(project.dt_project_uuid, suppressed=suppressed)
+    findings = await epss.with_epss(dtrack, findings)
     findings.sort(key=lambda finding: (_severity_rank(finding), finding.component_name))
     return FindingList(items=[_finding(finding) for finding in findings], total=len(findings))
 

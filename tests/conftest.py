@@ -60,13 +60,16 @@ def fresh_caches() -> Iterator[None]:
     Without this, a test would be served the previous test's numbers.
     """
     from app.services.dashboard import invalidate_cache as invalidate_dashboard
+    from app.services.epss import invalidate_cache as invalidate_epss
     from app.services.vulnerabilities import invalidate_cache as invalidate_vulnerabilities
 
     invalidate_dashboard()
     invalidate_vulnerabilities()
+    invalidate_epss()
     yield
     invalidate_dashboard()
     invalidate_vulnerabilities()
+    invalidate_epss()
 
 
 @pytest.fixture

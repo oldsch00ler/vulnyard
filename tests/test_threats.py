@@ -14,10 +14,12 @@ from fastapi.testclient import TestClient
 from app.config import Settings
 from app.services.dtrack import _finding
 from app.services.kev import KevCatalog, KevEntry, KevStatus, parse_catalog
-from app.services.threats import EXPLOITED, LIKELY, NEW, select
+from app.services import epss
+from app.services.threats import EXPLOITED, LIKELY, NEW, is_new, select
 from app.services.vulnerabilities import AffectedProjectFinding, GroupedVulnerability
 from tests.fakes import FakeDependencyTrack
 from tests.test_dashboard_api import _finding as dt_finding
+from tests.test_dashboard_api import _run_sql
 from tests.test_dashboard_api import scanned  # noqa: F401 - fixture
 
 NOW = datetime(2026, 10, 23, 12, 0, tzinfo=UTC)
@@ -203,6 +205,48 @@ def test_exploited_come_first_ransomware_before_others_then_epss() -> None:
     assert ordered == ["CVE-2026-0002", "CVE-2026-0001", "CVE-2026-0003"]
 
 
+class _Project:
+    def __init__(self, first_seen_at: datetime) -> None:
+        self.first_seen_at = first_seen_at
+
+
+def test_findings_of_a_first_scan_are_not_new() -> None:
+    """A project scanned for the first time brings all it has; that is not news."""
+    onboarded = NOW - timedelta(days=3)
+    baseline = _vulnerability("CVE-2026-0020", "CRITICAL", first_seen=onboarded + timedelta(hours=2))
+    baseline.affected[0].project = _Project(onboarded)  # type: ignore[assignment]
+    later = _vulnerability("CVE-2026-0021", "CRITICAL", first_seen=onboarded + timedelta(days=2))
+    later.affected[0].project = _Project(onboarded)  # type: ignore[assignment]
+
+    since = NOW - timedelta(days=7)
+    assert is_new(baseline, since) is False
+    assert is_new(later, since) is True
+    assert [t.vulnerability.vuln_id for t in select([baseline, later], {}, now=NOW)] == ["CVE-2026-0021"]
+
+
+async def test_epss_is_read_from_the_cve_alias_and_cached() -> None:
+    """Dependency-Track keeps EPSS only on NVD records, not on GHSA findings."""
+    dtrack = FakeDependencyTrack()
+    dtrack.nvd_epss_scores = {"CVE-2026-0001": (0.42, 0.98)}
+    ghsa = replace(dt_finding("GHSA-aaaa", "HIGH", source="GITHUB"), aliases=("CVE-2026-0001",))
+    own = replace(dt_finding("CVE-2026-0002", "LOW"), epss_score=0.03, epss_percentile=0.5)
+    unknown = replace(dt_finding("GHSA-bbbb", "HIGH", source="GITHUB"), aliases=("CVE-2026-0009",))
+    no_cve = dt_finding("GHSA-cccc", "HIGH", source="GITHUB")
+    epss.invalidate_cache()
+
+    completed = await epss.with_epss(dtrack, [ghsa, own, unknown, no_cve])
+
+    assert (completed[0].epss_score, completed[0].epss_percentile) == (0.42, 0.98)
+    assert completed[1] is own  # its own score is kept, nothing is asked
+    assert completed[2].epss_score is None
+    assert completed[3].epss_score is None
+    assert sorted(dtrack.nvd_epss_calls) == ["CVE-2026-0001", "CVE-2026-0009"]
+
+    # A day's cache, "no score" included: the next page load asks nothing.
+    await epss.with_epss(dtrack, [ghsa, unknown])
+    assert len(dtrack.nvd_epss_calls) == 2
+
+
 def test_thresholds_can_be_changed() -> None:
     vulnerabilities = [
         _vulnerability("CVE-2026-0010", epss=0.05),
@@ -247,14 +291,27 @@ def test_threats_api_lists_and_counts_threats_of_our_projects(
             replace(dt_finding("CVE-2026-0005", "LOW", suppressed=True), aliases=("CVE-2026-0001",)),
         ],
     }
+    # GHSA finding without EPSS of its own: read from the NVD record of the alias.
+    dtrack.findings["dt-10-main"].append(
+        replace(dt_finding("GHSA-bbbb", "LOW", source="GITHUB"), aliases=("CVE-2026-0006",))
+    )
+    dtrack.nvd_epss_scores = {"CVE-2026-0006": (0.2, 0.9)}
     scanned.app.state.kev = FakeKev(
         {"CVE-2026-0001": KevEntry(cve_id="CVE-2026-0001", ransomware=True, due_date=date(2026, 11, 1))}
     )
+    # Scanned for a month already, so a finding from yesterday is news.
+    _run_sql(scanned, "UPDATE projects SET first_seen_at = now() - interval '30 days'")
 
     body = scanned.get("/api/threats").json()
 
-    assert [item["vuln_id"] for item in body["items"]] == ["GHSA-aaaa", "CVE-2026-0002", "CVE-2026-0003"]
-    assert body["counts"] == {"exploited": 1, "likely": 1, "new": 1}
+    assert [item["vuln_id"] for item in body["items"]] == [
+        "GHSA-aaaa",
+        "CVE-2026-0002",
+        "GHSA-bbbb",
+        "CVE-2026-0003",
+    ]
+    assert body["counts"] == {"exploited": 1, "likely": 2, "new": 1}
+    assert body["items"][2]["epss_score"] == 0.2
     first = body["items"][0]
     assert first["reasons"] == ["exploited"]
     assert first["cve_ids"] == ["CVE-2026-0001"]

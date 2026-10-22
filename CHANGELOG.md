@@ -5,6 +5,16 @@ All notable changes to Vulnyard are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Entries are generated from the
 commit history by `scripts/release.py`.
 
+## [0.3.2] – 2026-10-23
+
+### Changed
+
+- Stop counting findings of a project's first scan as new threats
+
+### Fixed
+
+- Fix EPSS missing for findings reported under a GHSA or OSV id
+
 ## [0.3.1] – 2026-10-23
 
 Maintenance release without user-visible changes.

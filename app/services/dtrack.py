@@ -457,6 +457,23 @@ class DependencyTrackClient:
             body["comment"] = comment
         await self._request_json("PUT", "/analysis", json=body)
 
+    async def nvd_epss(self, cve_id: str) -> tuple[float | None, float | None] | None:
+        """EPSS score and percentile of a CVE as stored on its NVD record.
+
+        Dependency-Track writes mirrored EPSS scores only to NVD vulnerabilities,
+        so a finding reported under a GHSA or OSV id carries none of its own even
+        when its CVE alias has one. None when there is no NVD record for the CVE.
+        """
+        try:
+            payload = await self._request_json("GET", f"/vulnerability/source/NVD/vuln/{_quote(cve_id)}")
+        except DependencyTrackError as error:
+            if error.code == "dtrack.not_found":
+                return None
+            raise
+        if not isinstance(payload, dict):
+            return None
+        return _float(payload.get("epssScore")), _float(payload.get("epssPercentile"))
+
     async def projects_for_vulnerability(self, source: str, vuln_id: str) -> list[DTAffectedProject]:
         """Projects affected by one vulnerability."""
         payload = await self._request_json(
@@ -694,6 +711,13 @@ def _cwe(vulnerability: dict[str, Any]) -> str | None:
         return f"CWE-{cwe_id}" if cwe_id else None
     cwe_id = vulnerability.get("cweId")
     return f"CWE-{cwe_id}" if cwe_id else None
+
+
+def _float(value: Any) -> float | None:
+    try:
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
 
 
 def _epoch_ms(value: Any) -> datetime | None:

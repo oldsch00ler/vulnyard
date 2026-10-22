@@ -7,7 +7,8 @@ is using it. A threat is a vulnerability that is
 
 * known to be exploited (it is in the CISA KEV catalog),
 * likely to be exploited soon (EPSS at or above a threshold), or
-* new in our projects and critical or high.
+* new in our projects and critical or high. Findings of a project's first
+  scan are not new: they were there before, Vulnyard just had not looked.
 
 They are ordered by that evidence: exploited first (ransomware use first among
 those), then by EPSS, severity and how recent it is.
@@ -32,6 +33,9 @@ DEFAULT_EPSS_THRESHOLD = 0.1
 DEFAULT_NEW_DAYS = 7
 #: "New" alone is not a threat; new and serious is.
 NEW_SEVERITIES = frozenset({"CRITICAL", "HIGH"})
+#: Findings attributed this soon after a project appeared come from its first
+#: scan (Dependency-Track analyses a fresh BOM within minutes to hours).
+BASELINE_GRACE = timedelta(days=1)
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,12 +76,7 @@ def select(
             reasons.append(EXPLOITED)
         if vulnerability.epss_score is not None and vulnerability.epss_score >= epss_threshold:
             reasons.append(LIKELY)
-        first_seen = vulnerability.first_seen
-        if (
-            first_seen is not None
-            and first_seen >= new_since
-            and vulnerability.severity.upper() in NEW_SEVERITIES
-        ):
+        if vulnerability.severity.upper() in NEW_SEVERITIES and is_new(vulnerability, new_since):
             reasons.append(NEW)
 
         if reasons:
@@ -87,6 +86,22 @@ def select(
 
     threats.sort(key=_urgency)
     return threats
+
+
+def is_new(vulnerability: GroupedVulnerability, since: datetime) -> bool:
+    """First seen in our projects after `since`, and not as part of a first scan.
+
+    Decided by the earliest occurrence: when we already had it somewhere, it
+    is not news because another project got it too.
+    """
+    occurrences = [one for one in vulnerability.affected if one.attributed_on is not None]
+    if not occurrences:
+        return False
+    earliest = min(occurrences, key=lambda one: one.attributed_on)
+    if earliest.attributed_on < since:
+        return False
+    onboarded = getattr(earliest.project, "first_seen_at", None)
+    return onboarded is None or earliest.attributed_on > onboarded + BASELINE_GRACE
 
 
 def _urgency(threat: Threat) -> tuple[int, int, float, int, float, str]:

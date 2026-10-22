@@ -207,6 +207,9 @@ class FakeDependencyTrack:
         self.grouped: list[DTGroupedVulnerability] = []
         self.affected: dict[str, list[DTAffectedProject]] = {}
         self.history: dict[str, list[DTMetrics]] = {}
+        # EPSS on NVD records, by CVE; Dependency-Track keeps it nowhere else.
+        self.nvd_epss_scores: dict[str, tuple[float | None, float | None]] = {}
+        self.nvd_epss_calls: list[str] = []
         self.list_projects_calls = 0
         self.uploads: list[UploadCall] = []
         self.tag_merges: list[tuple[str, tuple[str, ...]]] = []
@@ -337,6 +340,10 @@ class FakeDependencyTrack:
 
     async def projects_for_vulnerability(self, source: str, vuln_id: str) -> list[DTAffectedProject]:
         return list(self.affected.get(f"{source}/{vuln_id}", []))
+
+    async def nvd_epss(self, cve_id: str) -> tuple[float | None, float | None] | None:
+        self.nvd_epss_calls.append(cve_id)
+        return self.nvd_epss_scores.get(cve_id)
 
     async def project_metrics_history(self, uuid: str, days: int) -> list[DTMetrics]:
         return list(self.history.get(uuid, []))

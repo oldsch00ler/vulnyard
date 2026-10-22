@@ -179,7 +179,7 @@
     "reasonHint": {
       "exploited": "Listed in the CISA catalog of known exploited vulnerabilities.",
       "likely": "EPSS of at least {{epss}}: the probability of exploitation in the next 30 days.",
-      "new": "Critical or high, first seen in our projects in the last {{days}} days."
+      "new": "Critical or high, first seen in our projects in the last {{days}} days; a project's first scan does not count."
     },
     "badge": {
       "exploited": "Exploited",
@@ -220,7 +220,7 @@
       "kevDisabled": "The CISA catalog of known exploited vulnerabilities is turned off (KEV_FEED_URL is empty), so actively exploited vulnerabilities are not recognised.",
       "kevUnavailable": "The CISA catalog of known exploited vulnerabilities could not be downloaded, so actively exploited vulnerabilities are not recognised right now. The next attempt is within an hour.",
       "kevStale": "The last update of the CISA catalog failed; the copy from {{date}} is used.",
-      "epssMissing": "Dependency-Track reports no EPSS scores, so \"likely to be exploited\" stays empty. Turn on the EPSS mirroring in Dependency-Track.",
+      "epssMissing": "Dependency-Track has no EPSS scores, so \"likely to be exploited\" stays empty. It stores them only with NVD vulnerabilities: turn on the NVD mirroring (Administration → Vulnerability Sources) and wait for its next run.",
       "kevSource": "CISA catalog of known exploited vulnerabilities: {{entries}} entries, released {{date}}."
     }
   },

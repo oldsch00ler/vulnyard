@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.errors import AppError
 from app.models import Project
 from app.services.cache import TTLCache
+from app.services import epss
 from app.services.dtrack import DependencyTrackClient, DTFinding
 
 logger = logging.getLogger(__name__)
@@ -157,7 +158,10 @@ async def _findings_of(
         return [(project, finding) for finding in found]
 
     results = await asyncio.gather(*(one(project) for project in projects))
-    return [pair for group in results for pair in group]
+    pairs = [pair for group in results for pair in group]
+    # GHSA/OSV findings carry no EPSS of their own; read it from the CVE alias.
+    completed = await epss.with_epss(dtrack, [finding for _, finding in pairs])
+    return [(project, finding) for (project, _), finding in zip(pairs, completed, strict=True)]
 
 
 def _group(

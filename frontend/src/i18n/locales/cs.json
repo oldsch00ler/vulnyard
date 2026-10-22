@@ -188,7 +188,7 @@
     "reasonHint": {
       "exploited": "Jsou v katalogu CISA známých zneužívaných zranitelností (KEV).",
       "likely": "EPSS aspoň {{epss}}: pravděpodobnost zneužití v příštích 30 dnech.",
-      "new": "Kritické nebo vysoké, v našich projektech poprvé za posledních {{days}} dní."
+      "new": "Kritické nebo vysoké, v našich projektech poprvé za posledních {{days}} dní; první sken projektu se nepočítá."
     },
     "badge": {
       "exploited": "Zneužívaná",
@@ -231,7 +231,7 @@
       "kevDisabled": "Katalog CISA známých zneužívaných zranitelností je vypnutý (prázdné KEV_FEED_URL), takže aktivně zneužívané zranitelnosti se nerozpoznají.",
       "kevUnavailable": "Katalog CISA známých zneužívaných zranitelností se nepodařilo stáhnout, takže aktivně zneužívané zranitelnosti se teď nerozpoznají. Další pokus proběhne do hodiny.",
       "kevStale": "Poslední aktualizace katalogu CISA selhala; používá se kopie z {{date}}.",
-      "epssMissing": "Dependency-Track neposílá skóre EPSS, takže „pravděpodobně zneužité“ zůstane prázdné. Zapni v Dependency-Tracku stahování EPSS.",
+      "epssMissing": "Dependency-Track nemá skóre EPSS, takže „pravděpodobně zneužité“ zůstane prázdné. Ukládá je jen k zranitelnostem z NVD: zapni zrcadlení NVD (Administration → Vulnerability Sources) a počkej na jeho další běh.",
       "kevSource": "Katalog CISA známých zneužívaných zranitelností: {{entries}} záznamů, vydán {{date}}."
     }
   },

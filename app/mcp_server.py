@@ -34,6 +34,7 @@ from app.db import session_factory
 from app.errors import AppError
 from app.i18n import t
 from app.models import Project, ScanJob
+from app.services import epss
 from app.services import threats as threat_service
 from app.services import vulnerabilities as vulnerability_service
 from app.services.dtrack import DependencyTrackClient
@@ -108,6 +109,7 @@ def create_mcp_server() -> MCPServer:
             raise _error(ctx, "mcp.project_not_scanned", repository=project.path_with_namespace)
         try:
             findings = await dtrack.project_findings(str(project.dt_project_uuid), suppressed=include_ignored)
+            findings = await epss.with_epss(dtrack, findings)
         except AppError as error:
             raise _error(ctx, error.code, **error.params) from error
 
