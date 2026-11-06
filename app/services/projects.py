@@ -10,7 +10,9 @@ from datetime import UTC, datetime
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Project, ScanTarget, TargetProject
+from app.constants import JOB_ACTIVE_STATUSES, JOB_QUEUED
+from app.errors import ConflictError
+from app.models import Project, ProjectBranchOverride, ScanJob, ScanTarget, TargetProject
 from app.services.discovery import DiscoveryResult
 
 logger = logging.getLogger(__name__)
@@ -138,3 +140,46 @@ async def _link_to_target(session: AsyncSession, target: ScanTarget, projects: l
                 TargetProject.target_id == target.id, TargetProject.project_id.in_(stale)
             )
         )
+
+
+async def delete_project(session: AsyncSession, project: Project) -> None:
+    """Forget a project+branch row together with its jobs and snapshots.
+
+    Dependency-Track is left alone: its project and SBOM stay, only Vulnyard
+    stops showing the row. A project that is still part of a scan target comes
+    back at the next discovery, so this is meant for rows that are gone from
+    the source or whose target was deleted; a live project is excluded instead.
+    """
+    busy = await session.scalar(
+        select(ScanJob.id)
+        .where(
+            ScanJob.project_id == project.id,
+            ScanJob.status.in_((JOB_QUEUED, *JOB_ACTIVE_STATUSES)),
+        )
+        .limit(1)
+    )
+    if busy is not None:
+        raise ConflictError("project.scan_in_progress", id=project.id)
+
+    siblings = await session.scalar(
+        select(Project.id)
+        .where(
+            Project.source == project.source,
+            Project.source_project_id == project.source_project_id,
+            Project.id != project.id,
+        )
+        .limit(1)
+    )
+    if siblings is None:
+        # The override belongs to the source project, not to one branch row;
+        # it goes with the last row so nothing lingers.
+        await session.execute(
+            delete(ProjectBranchOverride).where(
+                ProjectBranchOverride.source == project.source,
+                ProjectBranchOverride.source_project_id == project.source_project_id,
+            )
+        )
+
+    await session.delete(project)
+    await session.commit()
+    logger.info("project %s (%s) deleted", project.id, project.path_with_namespace)

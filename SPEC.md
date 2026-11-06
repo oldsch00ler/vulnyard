@@ -477,7 +477,7 @@ JSON. Chyby ve tvaru `{"error": {"code": "...", "params": {...}, "message": "př
 **Projekty**
 - `GET /api/projects?target_id=&search=&min_severity=&status=&branch=default|all&sort=&page=` (výchozí `branch=default`)
 - `GET /api/projects/{id}`, `GET /api/projects/{id}/findings`, `GET /api/projects/{id}/history`
-- `PATCH /api/projects/{id}` (`excluded`), `POST /api/projects/{id}/scan?force=true`
+- `PATCH /api/projects/{id}` (`excluded`), `DELETE /api/projects/{id}` (smaže řádek včetně jobů a snapshotů, projekt v DT zůstává; 409 `project.scan_in_progress` při zařazeném nebo běžícím jobu), `POST /api/projects/{id}/scan?force=true`
 - `GET/PUT/DELETE /api/projects/{id}/branch-override`
 
 **Dashboard**
@@ -529,7 +529,7 @@ Levé menu, v hlavičce indikátor běžícího skenu, banner při chybějící 
 
 1. **Přehled** – karty se součty podle závažnosti a počtem zranitelných projektů; graf trendu (stacked area, 30/90/180 dní); top 10 nejrizikovějších projektů; panel „Stav skenování“ (poslední běh, chyby za 24 h, příští plánovaný běh).
 2. **Projekty** – tabulka: projekt, cíl, větev, C/H/M/L badge, risk score, poslední sken, odkazy do zdroje a DT. Filtry: cíl, text, minimální závažnost, stav skenu, větev (default/všechny). Řazení.
-3. **Detail projektu** – metriky a odkazy; přepínač větví (výchozí default branch); tlačítka „Skenovat teď“, „Vyloučit ze skenování“, „Nastavit větve pro tento projekt“ (override, s návratem na nastavení cíle); tabulka nálezů (vulnId, závažnost, CVSS, EPSS, komponenta@verze, purl, stav analýzy); mini trend; historie skenů s chybami.
+3. **Detail projektu** – metriky a odkazy; přepínač větví (výchozí default branch); tlačítka „Skenovat teď“, „Vyloučit ze skenování“, „Smazat“ (s potvrzením; odstraní projekt z Vulnyardu, v DT zůstává, a je-li stále součástí cíle, při dalším objevení se vrátí), „Nastavit větve pro tento projekt“ (override, s návratem na nastavení cíle); tabulka nálezů (vulnId, závažnost, CVSS, EPSS, komponenta@verze, purl, stav analýzy); mini trend; historie skenů s chybami.
 4. **Zranitelnosti** – **jen naše projekty** (sekce 9.4), seskupeno podle CVE/GHSA, rozbalením zasažené projekty a verze komponent („kde všude máme CVE-XXXX?“). U každé zranitelnosti tlačítko **„Ignorovat“** (sekce 9.6) s předvyplněným id a našeptanými purl komponent; přepínač „Zobrazit i ignorované“ a označení ignorovaných.
 5. **Cíle skenování** – seznam cílů (typ, cesta, větve, plán lidsky „denně ve 2:00“, počet projektů, stav, přepínač enabled). Formulář: typ s našeptávačem ze zdroje, podskupiny, **větve** – „Default branch (doporučeno)“ / „Vlastní výběr“ (chipy s názvy/vzory, u projektu našeptávač skutečných větví, „Skenovat i default branch“, limit větví), cron s předvolbami a vlastním výrazem, vzory výjimek, přeskakovat beze změny. Tlačítka **„Náhled projektů“** a „Spustit sken“.
 6. **Běhy skenů** – historie běhů; detail s joby, stavem a chybou/logem; zrušení.

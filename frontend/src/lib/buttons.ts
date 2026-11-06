@@ -20,6 +20,10 @@ export const compactPrimaryButton =
 export const compactSecondaryButton =
   'rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium enabled:hover:bg-slate-100 disabled:opacity-40 dark:border-slate-700 dark:enabled:hover:bg-slate-800'
 
+/** Destructive action in a tight spot (deleting the thing the page shows). */
+export const compactDangerButton =
+  'rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 enabled:hover:bg-red-50 disabled:opacity-40 dark:border-red-500/40 dark:text-red-300 dark:enabled:hover:bg-red-500/10'
+
 /** Button next to an input, matching its height. */
 export const inputButton =
   'rounded-md border border-slate-300 px-2 py-1 text-sm enabled:hover:bg-slate-100 disabled:opacity-40 dark:border-slate-700 dark:enabled:hover:bg-slate-800'

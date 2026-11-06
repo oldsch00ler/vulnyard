@@ -96,6 +96,9 @@
     "exclude": "Exclude from scanning",
     "include": "Include in scanning again",
     "excludedNotice": "This project is excluded from scanning, so it does not count in the overview and is not added to runs.",
+    "confirmDelete": "Delete “{{path}}” (branch {{branch}}) from Vulnyard? Its scan history and trend will be lost. The project in Dependency-Track stays untouched.",
+    "confirmDeleteInTarget": "The project is still part of a scan target, so the next run discovers it again. To keep it out, exclude it from scanning instead.",
+    "confirmDeleteButton": "Really delete",
     "branches": "Branches",
     "findings": "Findings",
     "noFindings": "Dependency-Track reports no findings for this project.",
@@ -449,7 +452,8 @@
   "footer": {
     "credits": "Vulnyard · Apache-2.0 · © Lukáš Zuzaňák",
     "projectSite": "vulnyard.eu",
-    "authorSite": "zuzanak.eu"
+    "authorSite": "zuzanak.eu",
+    "version": "version {{version}}"
   },
   "common": {
     "add": "Add",

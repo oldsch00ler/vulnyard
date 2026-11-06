@@ -105,6 +105,9 @@
     "exclude": "Vyloučit ze skenování",
     "include": "Vrátit do skenování",
     "excludedNotice": "Tento projekt je vyloučený ze skenování, takže se nepočítá do přehledu ani se nezařazuje do běhů.",
+    "confirmDelete": "Smazat „{{path}}“ (větev {{branch}}) z Vulnyardu? Historie skenů a trend se ztratí. Projekt v Dependency-Tracku zůstane beze změny.",
+    "confirmDeleteInTarget": "Projekt je stále součástí cíle skenování, takže ho další běh objeví znovu. Pokud má zůstat pryč, místo smazání ho vyluč ze skenování.",
+    "confirmDeleteButton": "Opravdu smazat",
     "branches": "Větve",
     "findings": "Nálezy",
     "noFindings": "Dependency-Track u tohoto projektu nehlásí žádné nálezy.",
@@ -472,7 +475,8 @@
   "footer": {
     "credits": "Vulnyard · Apache-2.0 · © Lukáš Zuzaňák",
     "projectSite": "vulnyard.eu",
-    "authorSite": "zuzanak.eu"
+    "authorSite": "zuzanak.eu",
+    "version": "verze {{version}}"
   },
   "common": {
     "add": "Přidat",

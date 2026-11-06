@@ -92,6 +92,7 @@
   "job.unchanged": "Unchanged – the commit has not changed since the last scan.",
   "run.not_cancellable": "The run can no longer be cancelled, it is “{status}”.",
   "project.not_found": "Project with ID {id} does not exist.",
+  "project.scan_in_progress": "Project with ID {id} has a scan queued or running. Wait for it to finish or cancel the run, then delete the project.",
   "project.branch_override_not_found": "Project with ID {id} has no branch override.",
   "dtrack.not_configured": "Dependency-Track is not configured. Set the variables DT_API_URL and DT_API_KEY.",
   "dtrack.version_unsupported": "Dependency-Track has an unsupported version {version}. Features based on findings are therefore disabled.",

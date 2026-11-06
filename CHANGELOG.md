@@ -5,6 +5,16 @@ All notable changes to Vulnyard are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Entries are generated from the
 commit history by `scripts/release.py`.
 
+## [0.4.0] – 2026-11-06
+
+### Added
+
+- Add deleting a project from Vulnyard
+
+### Changed
+
+- Show the application version in the footer
+
 ## [0.3.2] – 2026-10-23
 
 ### Changed

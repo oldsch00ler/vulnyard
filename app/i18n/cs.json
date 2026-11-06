@@ -92,6 +92,7 @@
   "job.unchanged": "Beze změny – commit se od posledního skenu nezměnil.",
   "run.not_cancellable": "Běh už nejde zrušit, je ve stavu „{status}“.",
   "project.not_found": "Projekt s ID {id} neexistuje.",
+  "project.scan_in_progress": "Projekt s ID {id} má zařazený nebo běžící sken. Počkej na jeho dokončení nebo běh zruš a projekt smaž potom.",
   "project.branch_override_not_found": "Projekt s ID {id} nemá vlastní nastavení větví.",
   "dtrack.not_configured": "Dependency-Track není nastavený. Doplň proměnné DT_API_URL a DT_API_KEY.",
   "dtrack.version_unsupported": "Dependency-Track má nepodporovanou verzi {version}. Funkce nad nálezy jsou proto vypnuté.",

@@ -112,6 +112,12 @@ export default function Layout({ status, children }: LayoutProps) {
 
         <footer className="border-t border-slate-200 px-4 py-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-500">
           <span>{t('footer.credits')}</span>
+          {status?.app.version && (
+            <>
+              {' · '}
+              <span>{t('footer.version', { version: status.app.version })}</span>
+            </>
+          )}
           {' · '}
           <a className="underline hover:no-underline" href="https://vulnyard.eu" target="_blank" rel="noreferrer">
             {t('footer.projectSite')}

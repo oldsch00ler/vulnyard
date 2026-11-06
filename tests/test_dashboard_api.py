@@ -258,6 +258,31 @@ def test_excluding_a_project_hides_it_from_the_listing(scanned: TestClient) -> N
     assert scanned.get("/api/projects").json()["total"] == 2
 
 
+def test_deleting_a_project_forgets_it_but_leaves_dependency_track_alone(scanned: TestClient) -> None:
+    project_id = scanned.get("/api/projects?search=api").json()["items"][0]["id"]
+    dtrack = scanned.app.state.dtrack
+    dt_projects_before = list(dtrack.projects)
+
+    assert scanned.delete(f"/api/projects/{project_id}").status_code == 204
+
+    assert scanned.get(f"/api/projects/{project_id}").status_code == 404
+    assert scanned.get("/api/projects").json()["total"] == 1
+    assert scanned.get(f"/api/projects/{project_id}/history").status_code == 404
+    # Dependency-Track still has the project; only Vulnyard forgot it.
+    assert dtrack.projects == dt_projects_before
+
+
+def test_deleting_a_project_with_a_queued_scan_is_refused(scanned: TestClient) -> None:
+    project_id = scanned.get("/api/projects?search=api").json()["items"][0]["id"]
+    scanned.post(f"/api/projects/{project_id}/scan")
+
+    response = scanned.delete(f"/api/projects/{project_id}")
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "project.scan_in_progress"
+    assert scanned.get(f"/api/projects/{project_id}").status_code == 200
+
+
 def test_scanning_one_project_queues_a_single_job(scanned: TestClient) -> None:
     project_id = scanned.get("/api/projects?search=api").json()["items"][0]["id"]
 

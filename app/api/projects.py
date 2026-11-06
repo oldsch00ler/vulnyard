@@ -39,6 +39,7 @@ from app.schemas import (
 from app.services import dashboard as dashboard_service
 from app.services import overrides as override_service
 from app.services import epss
+from app.services import projects as project_service
 from app.services import runs as run_service
 from app.services.dashboard import SEVERITIES, SEVERITY_ORDER, ProjectRow
 from app.services.dtrack import DTFinding
@@ -223,6 +224,14 @@ async def patch_project(
         project.excluded = payload.excluded
     await session.commit()
     return await read_project(project_id, session, dtrack)
+
+
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_project(project_id: int, session: SessionDep) -> Response:
+    """Remove the project from Vulnyard; Dependency-Track keeps its copy."""
+    project = await override_service.get_project(session, project_id)
+    await project_service.delete_project(session, project)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/{project_id}/scan", response_model=RunRead, status_code=status.HTTP_201_CREATED)

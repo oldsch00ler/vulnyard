@@ -3,11 +3,12 @@
 
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError } from '../api/client'
 import {
   useDeleteBranchOverride,
+  useDeleteProject,
   useProject,
   useProjectFindings,
   useProjectHistory,
@@ -21,9 +22,11 @@ import SeverityBadges, { SeverityLabel } from '../components/SeverityBadges'
 import StatusBadge from '../components/StatusBadge'
 import LazyTrendChart from '../components/LazyTrendChart'
 import {
+  compactDangerButton,
   compactPrimaryButton,
   compactSecondaryButton,
   smallButton,
+  smallDangerButton,
   smallPrimaryButton,
 } from '../lib/buttons'
 import { formatDateTime, formatDuration, shortSha } from '../lib/format'
@@ -32,6 +35,7 @@ export default function ProjectDetail() {
   const { t, i18n } = useTranslation()
   const params = useParams<{ projectId: string }>()
   const projectId = params.projectId ? Number(params.projectId) : null
+  const navigate = useNavigate()
 
   const { data: project, isLoading, isError, error } = useProject(projectId)
   const findings = useProjectFindings(projectId, Boolean(project?.dt_project_uuid))
@@ -41,8 +45,10 @@ export default function ProjectDetail() {
   const setExcluded = useSetProjectExcluded()
   const saveOverride = useSaveBranchOverride()
   const deleteOverride = useDeleteBranchOverride()
+  const deleteProject = useDeleteProject()
 
   const [overrideOpen, setOverrideOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [patterns, setPatterns] = useState<string[]>([])
   const [includeDefault, setIncludeDefault] = useState(true)
 
@@ -116,8 +122,50 @@ export default function ProjectDetail() {
               >
                 {project.excluded ? t('projects.include') : t('projects.exclude')}
               </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                disabled={confirmDelete || deleteProject.isPending}
+                className={compactDangerButton}
+              >
+                {t('common.delete')}
+              </button>
             </div>
           </header>
+
+          {confirmDelete && (
+            <div className="space-y-2 rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-100">
+              <p>{t('projects.confirmDelete', { path: project.path_with_namespace, branch: project.branch })}</p>
+              {project.targets.length > 0 && <p>{t('projects.confirmDeleteInTarget')}</p>}
+              {deleteProject.isError && (
+                <p className="font-medium">
+                  {deleteProject.error instanceof ApiError
+                    ? deleteProject.error.message
+                    : String(deleteProject.error)}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    deleteProject.mutate(project.id, { onSuccess: () => void navigate('/projects') })
+                  }
+                  disabled={deleteProject.isPending}
+                  className={smallDangerButton}
+                >
+                  {t('projects.confirmDeleteButton')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  disabled={deleteProject.isPending}
+                  className={smallButton}
+                >
+                  {t('common.cancel')}
+                </button>
+              </div>
+            </div>
+          )}
 
           {scanProject.isSuccess && scanProject.data && (
             <p className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-100">

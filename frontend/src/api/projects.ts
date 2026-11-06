@@ -153,6 +153,18 @@ export function useSetProjectExcluded() {
   })
 }
 
+export function useDeleteProject() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (projectId: number) => sendJson<null>('DELETE', `/api/projects/${projectId}`),
+    onSuccess: (_data, projectId) => {
+      queryClient.removeQueries({ queryKey: ['projects', projectId] })
+      void queryClient.invalidateQueries({ queryKey: ['projects'] })
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+}
+
 export function useSaveBranchOverride() {
   const queryClient = useQueryClient()
   return useMutation({
