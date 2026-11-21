@@ -68,7 +68,7 @@ nepřidává – žádné pipeline, žádné merge requesty.
 - **Ignorování zranitelností** – zranitelnost, kterou nebudete řešit, lze potlačit
   pravidlem pro jeden cíl, nebo pro celou aplikaci, volitelně jen pro vybrané
   komponenty (`pkg:npm/express@5.*`) a jen do zadaného data. Potlačení se posílá
-  i do Dependency-Tracku.
+  i do Dependency-Tracku. Advisories stažená u zdroje se ignorují automaticky.
 - **Provoz** – historie běhů s chybami u jednotlivých jobů, ruční spuštění,
   zrušení běhu, plánovač, retence historie, testy připojení v Nastavení.
 - **MCP pro agenty v IDE** – vývojář se ptá z Claude Code, Cursoru nebo VS Code
@@ -150,6 +150,7 @@ globální výjimky a notifikace do chatu.
 | `TRIVY_BIN`, `TRIVY_OFFLINE` | cesta k Trivy a režim bez internetu |
 | `CA_BUNDLE` | PEM s vlastní CA pro HTTP volání, git i Trivy |
 | `KEV_FEED_URL` | katalog CISA známých zneužívaných zranitelností pro stránku Hrozby (výchozí: feed CISA); prázdná hodnota ho vypne |
+| `OSV_API_URL`, `CVE_API_URL` | kde se ověřují stažená advisories (výchozí: `https://api.osv.dev`, `https://cveawg.mitre.org/api`); prázdná hodnota ověřování vypne |
 | `TZ`, `DEFAULT_LOCALE`, `LOG_LEVEL` | časová zóna, výchozí jazyk (`cs`, `en`, …), úroveň logu |
 
 Povinná je jen `DATABASE_URL`. Bez proměnných pro GitLab a Dependency-Track
@@ -294,6 +295,18 @@ komponent) a jednou denně, aby se projevila expirace. Operace je idempotentní 
 funguje oběma směry – co pravidlo přestalo pokrývat, se odpotlačí. Když je
 Dependency-Track nedostupný, pravidlo se uloží i tak a další běh ho dopošle;
 ručně to jde vynutit tlačítkem „Aplikovat pravidla znovu“.
+
+### Stažená advisories
+
+GitHub občas advisory stáhne, Dependency-Track 4.x si ale kopii, kterou už má,
+nechá a dál ji hlásí. Vulnyard proto advisories vašich nálezů ověřuje sám – GHSA
+a OSV id v [OSV](https://osv.dev), CVE v API programu CVE – po každém skenu u
+nových id a jednou denně u všech. Stažené advisory dostane automatické pravidlo
+pro celou aplikaci (stav „falešný nález“), které je v Nastavení vidět i s datem
+stažení; když se advisory obnoví, pravidlo zmizí. CVE alias staženého GHSA se
+hlásí dál, pokud není zamítnuté i samotné CVE. Automatické pravidlo, které
+smažete, už znovu nevznikne. Bez přístupu na internet nastavte `OSV_API_URL` a
+`CVE_API_URL` na prázdnou hodnotu.
 
 ## API a tokeny
 

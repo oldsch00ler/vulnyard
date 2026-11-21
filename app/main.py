@@ -26,6 +26,7 @@ from app.mcp_server import create_mcp_server, mcp_routes
 from app.masking import SecretMaskingFilter
 from app.schemas import HealthResponse
 from app.services.dtrack import MIN_SUPPORTED_VERSION, create_dtrack_client
+from app.services.advisories import AdvisoryLookup
 from app.services.kev import KevCatalog
 from app.services.notifications import ChatNotifier
 from app.services.queue import ScanWorker
@@ -156,6 +157,7 @@ async def _init_worker(settings: Settings, app: FastAPI) -> ScanWorker:
         dtrack=dtrack,
         trivy_available=app.state.trivy.available and app.state.git.available,
         notifier=notifier,
+        advisories=getattr(app.state, "advisories", None),
     )
     app.state.worker = worker
 
@@ -204,6 +206,7 @@ async def _init_scheduler(settings: Settings, app: FastAPI, worker: ScanWorker) 
         worker=worker,
         source_provider=getattr(app.state, "source_provider", None),
         dtrack=dtrack,
+        advisories=getattr(app.state, "advisories", None),
     )
     app.state.scheduler = scheduler
     await scheduler.start()
@@ -276,6 +279,10 @@ async def _shutdown(app: FastAPI) -> None:
     if kev is not None:
         await kev.close()
         app.state.kev = None
+    advisories = getattr(app.state, "advisories", None)
+    if advisories is not None:
+        await advisories.close()
+        app.state.advisories = None
     await dispose_engine()
 
 
@@ -297,6 +304,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.notifier = None
     # Fetched lazily by the threats page, so it costs nothing until used.
     app.state.kev = KevCatalog(settings)
+    # Used by the worker after a scan and by the daily ignore pass.
+    app.state.advisories = AdvisoryLookup(settings)
 
     # DATABASE_URL is the only mandatory variable – without it we stop with a
     # clear message instead of failing later on the first query.

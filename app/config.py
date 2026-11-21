@@ -25,6 +25,11 @@ DEFAULT_KEV_FEED_URL = (
     "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
 )
 
+# Where withdrawn advisories are looked up (SPEC 9.8): OSV for GHSA and OSV ids,
+# the CVE Program's own API for CVE ids (OSV drops a rejected CVE altogether).
+DEFAULT_OSV_API_URL = "https://api.osv.dev"
+DEFAULT_CVE_API_URL = "https://cveawg.mitre.org/api"
+
 # Variables required before any scanning can happen. Missing ones do not stop
 # the application: it starts, warns and disables scanning.
 SCAN_CONFIG_VARIABLES = ("GITLAB_TOKEN", "DT_API_URL", "DT_API_KEY")
@@ -62,6 +67,9 @@ class Settings(BaseSettings):
     #: CISA catalog of known exploited vulnerabilities; empty turns it off
     #: (for example without internet access).
     kev_feed_url: str = DEFAULT_KEV_FEED_URL
+    #: Withdrawn advisory detection; an empty value turns that lookup off.
+    osv_api_url: str = DEFAULT_OSV_API_URL
+    cve_api_url: str = DEFAULT_CVE_API_URL
 
     tz: str = "UTC"
     default_locale: str = DEFAULT_LOCALE

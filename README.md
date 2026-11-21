@@ -71,7 +71,8 @@ pipelines, no merge requests.
 - **Ignoring vulnerabilities** – a vulnerability you will not act on can be
   suppressed by a rule for one target or for the whole application, optionally
   only for selected components (`pkg:npm/express@5.*`) and only until a given
-  date. The suppression is sent to Dependency-Track as well.
+  date. The suppression is sent to Dependency-Track as well. Advisories withdrawn
+  upstream are ignored automatically.
 - **Operations** – run history with errors per job, manual runs, cancelling a
   run, scheduler, history retention, connection tests in Settings.
 - **MCP for coding agents** – developers ask from Claude Code, Cursor or VS Code
@@ -154,6 +155,7 @@ default cron, history retention, global exclusions and chat notifications.
 | `TRIVY_BIN`, `TRIVY_OFFLINE` | path to Trivy and offline mode |
 | `CA_BUNDLE` | PEM with a custom CA for HTTP calls, git and Trivy |
 | `KEV_FEED_URL` | CISA catalog of known exploited vulnerabilities for the Threats page (default: the CISA feed); empty turns it off |
+| `OSV_API_URL`, `CVE_API_URL` | where withdrawn advisories are checked (defaults: `https://api.osv.dev`, `https://cveawg.mitre.org/api`); empty turns that check off |
 | `TZ`, `DEFAULT_LOCALE`, `LOG_LEVEL` | time zone, default language (`cs`, `en`, …), log level |
 
 Only `DATABASE_URL` is required. Without the GitLab and Dependency-Track
@@ -315,6 +317,19 @@ versions) and once a day, so that expiry takes effect. The operation is
 idempotent and works both ways – whatever a rule no longer covers is
 unsuppressed. When Dependency-Track is unavailable, the rule is saved anyway and
 the next run sends it; it can be forced with the "Apply rules again" button.
+
+### Withdrawn advisories
+
+GitHub sometimes withdraws an advisory, but Dependency-Track 4.x keeps the copy
+it already has and goes on reporting it. Vulnyard therefore checks the advisories
+of your findings itself – GHSA and OSV ids in [OSV](https://osv.dev), CVE ids in
+the CVE Program's API – after every scan for new ids and once a day for all of
+them. A withdrawn advisory gets an automatic rule for the whole application
+(state "false positive"), shown in Settings with the date of the withdrawal; when
+the advisory is restored, the rule goes away. A CVE alias of a withdrawn GHSA
+stays reported unless the CVE itself is rejected. If you delete an automatic
+rule, it is not created again. Without internet access set `OSV_API_URL` and
+`CVE_API_URL` to an empty value.
 
 ## API and tokens
 

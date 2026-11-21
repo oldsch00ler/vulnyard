@@ -10,14 +10,14 @@ chat notifications all read - agree with what the UI shows.
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.constants import ANALYSIS_STATES, ANY_COMPONENT
-from app.dependencies import AuditIdentityDep, RequiredDTrackDep, SessionDep
+from app.constants import ANALYSIS_STATES, ANY_COMPONENT, IGNORE_ORIGIN_WITHDRAWN
+from app.dependencies import AdvisoriesDep, AuditIdentityDep, RequiredDTrackDep, SessionDep
 from app.errors import AppError
 from app.models import IgnoreApplication, IgnoreRule, ScanTarget
 from app.schemas import (
@@ -27,6 +27,7 @@ from app.schemas import (
     IgnoreRuleRead,
     IgnoreRuleUpdate,
 )
+from app.services import advisories as advisory_service
 from app.services import ignores as service
 from app.services import vulnerabilities as vulnerability_service
 from app.services.dashboard import invalidate_cache
@@ -54,8 +55,11 @@ async def list_rules(
     elif target_id is not None:
         query = query.where(IgnoreRule.target_id == target_id)
     rules = list((await session.execute(query)).scalars())
+    withdrawn = await advisory_service.withdrawn_dates(
+        session, [rule.vuln_id for rule in rules if rule.origin == IGNORE_ORIGIN_WITHDRAWN]
+    )
     return IgnoreRuleList(
-        items=[await _read(session, rule) for rule in rules], total=len(rules)
+        items=[await _read(session, rule, withdrawn) for rule in rules], total=len(rules)
     )
 
 
@@ -129,6 +133,9 @@ async def delete_rule(
     # Take the suppressions back first: once the rule is gone we no longer know
     # where they were applied.
     await service.revert_rule(session, dtrack, rule)
+    # Somebody disagrees with an automatic rule; the next check must not bring
+    # it back.
+    await advisory_service.dismiss(session, rule)
     await session.delete(rule)
     await session.commit()
     await _settled(session, dtrack)
@@ -136,8 +143,13 @@ async def delete_rule(
 
 
 @router.post("/apply", response_model=IgnoreApplyResult)
-async def apply_now(session: SessionDep, dtrack: RequiredDTrackDep) -> IgnoreApplyResult:
+async def apply_now(
+    session: SessionDep, dtrack: RequiredDTrackDep, advisories: AdvisoriesDep
+) -> IgnoreApplyResult:
     """Re-apply every rule; also used after a Dependency-Track outage."""
+    if advisories is not None:
+        # Advisories not looked up yet - e.g. while the upstream was down.
+        await advisory_service.sync_withdrawn(session, dtrack, advisories, recheck=False)
     outcome = await service.apply_rules(session, dtrack)
     expired = await service.revert_expired(session, dtrack)
     await _settled(session, dtrack)
@@ -175,11 +187,15 @@ async def _rule(session: AsyncSession, rule_id: int) -> IgnoreRule:
     return rule
 
 
-async def _read(session: AsyncSession, rule: IgnoreRule) -> IgnoreRuleRead:
+async def _read(
+    session: AsyncSession, rule: IgnoreRule, withdrawn: dict[str, datetime] | None = None
+) -> IgnoreRuleRead:
     target_name: str | None = None
     if rule.target_id is not None:
         target = await session.get(ScanTarget, rule.target_id)
         target_name = target.name if target else None
+    if withdrawn is None and rule.origin == IGNORE_ORIGIN_WITHDRAWN:
+        withdrawn = await advisory_service.withdrawn_dates(session, [rule.vuln_id])
     applied = await session.scalar(
         select(func.count())
         .select_from(IgnoreApplication)
@@ -195,6 +211,8 @@ async def _read(session: AsyncSession, rule: IgnoreRule) -> IgnoreRuleRead:
         reason=rule.reason,
         expires_on=rule.expires_on,
         active=service.is_active(rule),
+        origin=rule.origin,
+        withdrawn_at=(withdrawn or {}).get(rule.vuln_id.upper()),
         applied_count=int(applied or 0),
         created_at=rule.created_at,
         created_by=rule.created_by,

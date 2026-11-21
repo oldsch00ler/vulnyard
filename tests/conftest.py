@@ -39,6 +39,7 @@ DUMMY_DATABASE_URL = "postgresql://vulnyard:secret@localhost:5432/vulnyard"
 
 # Tables emptied before every database test, children first.
 TABLES_TO_CLEAN = (
+    "advisory_statuses",
     "api_tokens",
     "ignore_applications",
     "ignore_rules",
@@ -95,6 +96,9 @@ def env(monkeypatch: pytest.MonkeyPatch) -> Iterator[pytest.MonkeyPatch]:
     """Clean environment with a cached-settings reset around the test."""
     for name in MANAGED_ENV:
         monkeypatch.delenv(name, raising=False)
+    # No test asks the real OSV or CVE Program.
+    monkeypatch.setenv("OSV_API_URL", "")
+    monkeypatch.setenv("CVE_API_URL", "")
     get_settings.cache_clear()
     yield monkeypatch
     get_settings.cache_clear()

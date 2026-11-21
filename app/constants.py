@@ -78,6 +78,11 @@ DEFAULT_ANALYSIS_STATE: Final = ANALYSIS_NOT_AFFECTED
 # Pattern that matches any component of the scope.
 ANY_COMPONENT: Final = "*"
 
+# ignore_rules.origin – who made the rule: a person, or the application because
+# the advisory was withdrawn upstream (SPEC 9.8).
+IGNORE_ORIGIN_MANUAL: Final = "manual"
+IGNORE_ORIGIN_WITHDRAWN: Final = "withdrawn"
+
 # api_tokens.scope – what a machine caller may do. `write` includes `read`;
 # managing the tokens themselves is never allowed with a token.
 API_TOKEN_SCOPE_READ: Final = "read"

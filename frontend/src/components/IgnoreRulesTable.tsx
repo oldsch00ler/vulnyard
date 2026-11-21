@@ -42,7 +42,18 @@ export default function IgnoreRulesTable({
         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
           {rules.map((rule) => (
             <tr key={rule.id} className={rule.active ? undefined : 'opacity-60'}>
-              <td className="px-3 py-2 font-medium">{rule.vuln_id}</td>
+              <td className="px-3 py-2">
+                <span className="font-medium">{rule.vuln_id}</span>
+                {rule.origin === 'withdrawn' && (
+                  <span className="mt-1 block text-[11px] text-slate-500 dark:text-slate-400">
+                    {rule.withdrawn_at
+                      ? t('ignores.withdrawnOn', {
+                          date: formatDate(rule.withdrawn_at, i18n.language),
+                        })
+                      : t('ignores.withdrawn')}
+                  </span>
+                )}
+              </td>
               <td className="px-3 py-2">
                 {rule.purl_pattern === ANY_COMPONENT ? (
                   <span className="text-slate-600 dark:text-slate-400">

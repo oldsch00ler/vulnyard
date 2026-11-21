@@ -3,4 +3,4 @@
 """Vulnyard – central scanning of GitLab repositories with Trivy and Dependency-Track."""
 
 APP_NAME = "Vulnyard"
-__version__ = "0.4.0"
+__version__ = "0.5.0"

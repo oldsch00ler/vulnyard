@@ -16,6 +16,7 @@ from app.constants import (
     DEFAULT_ANALYSIS_STATE,
     DEFAULT_MAX_BRANCHES,
     DEFAULT_SCHEDULE_CRON,
+    IGNORE_ORIGIN_MANUAL,
     SOURCE_GITLAB,
 )
 
@@ -663,6 +664,10 @@ class IgnoreRuleUpdate(BaseModel):
 class IgnoreRuleRead(IgnoreRuleBase):
     id: int
     target_name: str | None = None
+    #: `manual`, or `withdrawn` for a rule the application made (SPEC 9.8).
+    origin: str = IGNORE_ORIGIN_MANUAL
+    #: When the advisory was withdrawn upstream, for an automatic rule.
+    withdrawn_at: datetime | None = None
     active: bool = True
     #: How many findings this rule really suppresses in Dependency-Track.
     applied_count: int = 0

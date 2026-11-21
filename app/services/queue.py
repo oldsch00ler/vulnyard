@@ -41,6 +41,7 @@ from app.services.app_settings import (
     get_scan_concurrency,
     should_send_alert,
 )
+from app.services.advisories import AdvisoryLookup, sync_withdrawn
 from app.services.dtrack import DependencyTrackClient
 from app.services.ignores import apply_rules as apply_ignore_rules
 from app.services.snapshots import take_snapshot
@@ -82,6 +83,7 @@ class ScanWorker:
         trivy_available: bool = True,
         notifier: ChatNotifier | None = None,
         source_provider: SourceProvider | None = None,
+        advisories: AdvisoryLookup | None = None,
     ) -> None:
         self._settings = settings
         self._sessions = sessions
@@ -90,6 +92,7 @@ class ScanWorker:
         self._dtrack = dtrack
         self._trivy_available = trivy_available
         self._notifier = notifier
+        self._advisories = advisories
         # Refreshed from the database before every dispatch.
         self._concurrency = max(1, settings.scan_concurrency)
         self._wakeup = asyncio.Event()
@@ -480,8 +483,21 @@ class ScanWorker:
         """
         if self._dtrack is None or not project.dt_project_uuid:
             return
+        project_ids: list[int] | None = [project.id]
+        if self._advisories is not None:
+            try:
+                # Only ids never seen before; the daily pass re-checks the rest.
+                withdrawn = await sync_withdrawn(
+                    session, self._dtrack, self._advisories, project_ids=[project.id], recheck=False
+                )
+            except Exception:  # noqa: BLE001 - must never fail a scan either
+                logger.exception("Withdrawn advisory check for project %s failed", project.id)
+            else:
+                if withdrawn.rules_added:
+                    # A new global rule: other projects carry the advisory too.
+                    project_ids = None
         try:
-            outcome = await apply_ignore_rules(session, self._dtrack, project_ids=[project.id])
+            outcome = await apply_ignore_rules(session, self._dtrack, project_ids=project_ids)
         except Exception:  # noqa: BLE001 - ignoring must never fail a scan
             logger.exception("Ignore rules for project %s failed", project.id)
             return

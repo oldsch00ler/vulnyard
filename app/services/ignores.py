@@ -21,7 +21,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.constants import ANY_COMPONENT
+from app.constants import ANY_COMPONENT, IGNORE_ORIGIN_WITHDRAWN
 from app.errors import AppError
 from app.models import IgnoreApplication, IgnoreRule, Project, TargetProject
 from app.services.dtrack import DependencyTrackClient, DTFinding
@@ -79,6 +79,8 @@ def rule_comment(rule: IgnoreRule) -> str:
     """Analysis comment for Dependency-Track; says who suppressed it and why."""
     scope = "global" if rule.target_id is None else f"target {rule.target_id}"
     parts = [f"{COMMENT_PREFIX}: ignore rule #{rule.id} ({scope})"]
+    if rule.origin == IGNORE_ORIGIN_WITHDRAWN:
+        parts.append("advisory withdrawn upstream")
     if rule.purl_pattern and rule.purl_pattern != ANY_COMPONENT:
         parts.append(f"pattern {rule.purl_pattern}")
     if rule.expires_on:

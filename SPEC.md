@@ -179,6 +179,8 @@ cmd = "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
 | `TRIVY_OFFLINE` | ne | `false` | `true` = `trivy fs --offline-scan` pro prostředí bez internetu |
 | `CA_BUNDLE` | ne | – | Cesta k PEM s vlastní CA (GitLab/DT s interním certifikátem); použít pro httpx, git (`GIT_SSL_CAINFO`) i Trivy (`SSL_CERT_FILE`) |
 | `KEV_FEED_URL` | ne | katalog CISA KEV | Zdroj katalogu známých zneužívaných zranitelností (9.7); prázdná hodnota ho vypne (prostředí bez internetu) |
+| `OSV_API_URL` | ne | `https://api.osv.dev` | Kde se ověřuje stažení GHSA/OSV advisory (9.8); prázdná hodnota to vypne |
+| `CVE_API_URL` | ne | `https://cveawg.mitre.org/api` | Kde se ověřuje zamítnutí CVE (9.8); prázdná hodnota to vypne |
 | `TZ` | ne | `UTC` | Časová zóna scheduleru a zobrazení |
 | `DEFAULT_LOCALE` | ne | `cs` | Výchozí jazyk UI a hlášek |
 | `LOG_LEVEL` | ne | `INFO` | |
@@ -240,6 +242,11 @@ Konfigurace v DB (upravitelná v UI, sekce Nastavení) má přednost před vých
 - `target_id` – NULL znamená celou aplikaci, jinak jen projekty toho cíle
 - `analysis_state` (`NOT_AFFECTED` | `FALSE_POSITIVE` | `RESOLVED`), `reason`
 - `expires_on` (NULL = dokud pravidlo někdo nesmaže), `created_at`, `created_by`
+- `origin` – `manual`, nebo `withdrawn` pro pravidlo, které aplikace založila sama kvůli staženému advisory (9.8)
+
+**`advisory_statuses`** – zda bylo advisory u zdroje staženo (sekce 9.8)
+- `vuln_id` (PK, velkými písmeny), `withdrawn_at` (NULL = platí), `checked_at`
+- `dismissed` – automatické pravidlo někdo ručně smazal; pro toto stažení už znovu nevznikne
 
 **`ignore_applications`** – co bylo z pravidla skutečně potlačeno v DT
 - `rule_id`, `project_id`, `dt_project_uuid`, `dt_component_uuid`, `dt_vulnerability_uuid`, `purl`, `applied_at`
@@ -433,6 +440,33 @@ kterých je důvod jednat hned:
 stáří. Katalog KEV se stahuje z `KEV_FEED_URL` líně, nejvýš jednou denně, drží se v
 paměti; při chybě zůstává poslední kopie a další pokus je do hodiny. Bez katalogu
 (vypnutý nebo nedostupný) stránka funguje dál, jen bez první kategorie, a řekne to.
+
+### 9.8 Stažená advisories
+
+Zdroj občas advisory stáhne (omyl, duplikát, nakonec to zranitelnost není).
+Dependency-Track 4.x stažené advisory při zrcadlení jen přeskočí, kopii, kterou už
+má, ale nechá a dál ji páruje – nález by tak navždy zůstal v počtech i notifikacích.
+Aplikace se proto ptá zdroje sama:
+
+- **GHSA a OSV id** (zdroj nálezu `GITHUB`, `OSV`): `GET {OSV_API_URL}/v1/vulns/{id}`,
+  pole `withdrawn`. OSV id rozlišuje velikost písmen, GHSA má zbytek malými.
+- **CVE** (zdroj `NVD`): `GET {CVE_API_URL}/cve/{id}`, `cveMetadata.state == REJECTED`.
+  OSV zamítnuté CVE úplně maže a 404 se nedá odlišit od CVE, které OSV nikdy nemělo.
+- 404 znamená „platí“, chyba nebo nedostupnost znamená „nevíme“ – zůstává poslední
+  známý stav a příští běh se zeptá znovu. Paralelně nejvýš 4 dotazy.
+- **Kdy:** po skenu projektu jen id, která aplikace ještě nezná; při denním průchodu
+  ignore pravidel (9.6) znovu všechna, protože advisory může být stažené – nebo
+  obnovené – kdykoliv. Tlačítko „Aplikovat pravidla znovu“ dohledá jen nová id.
+- **Co se stane:** stažené advisory dostane automatické globální pravidlo
+  (`origin = withdrawn`, vzor `*`, stav `FALSE_POSITIVE`) a dál ho obslouží běžný
+  mechanismus 9.6 včetně potlačení v DT. Obnovené advisory pravidlo ztratí a
+  potlačení se zruší. Pokud už pro stejné id existuje ruční globální pravidlo se
+  vzorem `*`, automatické nevzniká.
+- **CVE alias staženého GHSA** se nepotlačuje automaticky – jen když je zamítnuté i
+  samotné CVE. Za CVE může stát jiný CNA.
+- **Ruční smazání** automatického pravidla se zapamatuje (`dismissed`) a pravidlo
+  pro toto stažení znovu nevznikne.
+- Prostředí bez internetu nastaví `OSV_API_URL` i `CVE_API_URL` na prázdnou hodnotu.
 
 ---
 

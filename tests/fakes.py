@@ -354,3 +354,31 @@ class FakeDependencyTrack:
             return by_uuid[uuid]
         project = next((p for p in self.projects if p.uuid == uuid), None)
         return project.metrics if project else None
+
+
+class FakeAdvisories:
+    """Withdrawn advisory lookup answering from a dict instead of OSV/CVE.org."""
+
+    def __init__(self, withdrawn: dict[str, datetime] | None = None) -> None:
+        # Upper-case id -> when it was withdrawn; anything else stands.
+        self.withdrawn = withdrawn or {}
+        self.fails = False
+        self.calls: list[str] = []
+
+    @property
+    def enabled(self) -> bool:
+        return True
+
+    def handles(self, vuln_id: str, source: str) -> bool:
+        return source.upper() in {"GITHUB", "OSV", "NVD"}
+
+    async def withdrawn_at(self, vuln_id: str) -> datetime | None:
+        import httpx
+
+        self.calls.append(vuln_id)
+        if self.fails:
+            raise httpx.ConnectError("upstream down")
+        return self.withdrawn.get(vuln_id.upper())
+
+    async def close(self) -> None:
+        return None

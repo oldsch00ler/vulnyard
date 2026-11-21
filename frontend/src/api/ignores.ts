@@ -33,6 +33,9 @@ export interface IgnoreRule {
   applied_count: number
   created_at: string
   created_by: string | null
+  /** `withdrawn` = made by the application because the advisory was withdrawn upstream. */
+  origin: 'manual' | 'withdrawn'
+  withdrawn_at: string | null
 }
 
 export interface IgnoreRulePayload {

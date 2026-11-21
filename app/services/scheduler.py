@@ -21,6 +21,7 @@ from app.models import ScanTarget
 from app.services import runs as run_service
 from app.services.app_settings import get_global_exclude_patterns
 from app.services.queue import ScanWorker
+from app.services.advisories import AdvisoryLookup, sync_withdrawn
 from app.services.dtrack import DependencyTrackClient
 from app.services.ignores import apply_rules, revert_expired
 from app.services.retention import purge_old_runs, purge_old_snapshots
@@ -63,12 +64,14 @@ class ScanScheduler:
         worker: ScanWorker,
         source_provider: SourceProvider | None = None,
         dtrack: DependencyTrackClient | None = None,
+        advisories: AdvisoryLookup | None = None,
     ) -> None:
         self._settings = settings
         self._sessions = sessions
         self._worker = worker
         self._sources = source_provider
         self._dtrack = dtrack
+        self._advisories = advisories
         self._lock_connection: AsyncConnection | None = None
         self._scheduler = AsyncIOScheduler(
             timezone=ZoneInfo(settings.timezone_name),
@@ -252,10 +255,27 @@ class ScanScheduler:
             await purge_old_snapshots(session)
 
     async def _run_ignores(self) -> None:
-        """Re-apply the ignore rules and let the expired ones go (SPEC 12.4)."""
+        """Re-apply the ignore rules and let the expired ones go (SPEC 12.4).
+
+        Withdrawn advisories are looked up again first (SPEC 9.8), so that their
+        automatic rules are part of the same pass.
+        """
         if self._dtrack is None:
             return
         async with self._sessions() as session:
+            if self._advisories is not None:
+                try:
+                    withdrawn = await sync_withdrawn(session, self._dtrack, self._advisories)
+                except AppError as error:
+                    logger.warning("Daily check of withdrawn advisories failed: %s", error.code)
+                else:
+                    logger.info(
+                        "Withdrawn advisories: %s checked, %s failed, %s rules added, %s removed",
+                        withdrawn.checked,
+                        withdrawn.failed,
+                        withdrawn.rules_added,
+                        withdrawn.rules_removed,
+                    )
             try:
                 applied = await apply_rules(session, self._dtrack)
                 expired = await revert_expired(session, self._dtrack)

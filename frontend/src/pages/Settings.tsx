@@ -429,7 +429,9 @@ export default function Settings() {
               rules={ignoreRules.data.items}
               deletingId={deleteRule.isPending ? deleteRule.variables : null}
               onDelete={(rule: IgnoreRule) => {
-                if (window.confirm(t('ignores.confirmDelete', { vulnId: rule.vuln_id }))) {
+                const question =
+                  rule.origin === 'withdrawn' ? 'ignores.confirmDeleteWithdrawn' : 'ignores.confirmDelete'
+                if (window.confirm(t(question, { vulnId: rule.vuln_id }))) {
                   deleteRule.mutate(rule.id)
                 }
               }}

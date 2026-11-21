@@ -5,6 +5,12 @@ All notable changes to Vulnyard are listed here. The format follows
 [Semantic Versioning](https://semver.org/). Entries are generated from the
 commit history by `scripts/release.py`.
 
+## [0.5.0] – 2026-11-21
+
+### Added
+
+- Add automatic ignoring of advisories withdrawn upstream
+
 ## [0.4.0] – 2026-11-06
 
 ### Added

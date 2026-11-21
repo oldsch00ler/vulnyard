@@ -33,6 +33,7 @@ from app.constants import (
     BRANCH_MODE_DEFAULT,
     DEFAULT_ANALYSIS_STATE,
     DEFAULT_MAX_BRANCHES,
+    IGNORE_ORIGIN_MANUAL,
     SOURCE_GITLAB,
 )
 
@@ -273,6 +274,11 @@ class IgnoreRule(Base):
     # null = until somebody deletes the rule.
     expires_on: Mapped[date | None] = mapped_column(Date, nullable=True)
 
+    # `withdrawn` rules are made and removed by the application (SPEC 9.8).
+    origin: Mapped[str] = mapped_column(
+        String(16), default=IGNORE_ORIGIN_MANUAL, server_default=IGNORE_ORIGIN_MANUAL
+    )
+
     created_at: Mapped[datetime] = _utcnow_column()
     created_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
@@ -315,6 +321,25 @@ class IgnoreApplication(Base):
     applied_at: Mapped[datetime] = _utcnow_column()
 
     rule: Mapped[IgnoreRule] = relationship(back_populates="applications")
+
+
+class AdvisoryStatus(Base):
+    """Whether the advisory behind a vulnerability id was withdrawn upstream.
+
+    Dependency-Track 4.x keeps a withdrawn advisory and goes on matching it, so
+    the application asks OSV / the CVE Program itself (SPEC 9.8). A row is kept
+    for "not withdrawn" too, so that the same id is not asked about on every scan.
+    """
+
+    __tablename__ = "advisory_statuses"
+
+    # Upper case, like ignore_rules.vuln_id.
+    vuln_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    withdrawn_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    # Somebody deleted the automatic rule; it is not made again for this
+    # withdrawal.
+    dismissed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
 
 class ApiToken(Base):

@@ -14,6 +14,7 @@ from app.config import DEFAULT_LOCALE, Settings, get_settings
 from app.db import get_session
 from app.errors import AppError, SourceNotConfiguredError
 from app.i18n import resolve_locale
+from app.services.advisories import AdvisoryLookup
 from app.services.dtrack import DependencyTrackClient
 from app.services.kev import KevCatalog
 from app.services.notifications import ChatNotifier
@@ -104,6 +105,11 @@ def kev_dependency(request: Request) -> KevCatalog:
     return request.app.state.kev
 
 
+def advisories_dependency(request: Request) -> AdvisoryLookup | None:
+    """The withdrawn advisory lookup created at startup."""
+    return getattr(request.app.state, "advisories", None)
+
+
 def scheduler_dependency(request: Request) -> ScanScheduler | None:
     """The scheduler, or None when scanning is not configured."""
     return getattr(request.app.state, "scheduler", None)
@@ -120,6 +126,7 @@ SourcesDep = Annotated[SourceProvider, Depends(source_provider_dependency)]
 WorkerDep = Annotated[ScanWorker, Depends(worker_dependency)]
 SchedulerDep = Annotated["ScanScheduler | None", Depends(scheduler_dependency)]
 KevDep = Annotated[KevCatalog, Depends(kev_dependency)]
+AdvisoriesDep = Annotated[AdvisoryLookup | None, Depends(advisories_dependency)]
 DTrackDep = Annotated["DependencyTrackClient | None", Depends(dtrack_dependency)]
 RequiredDTrackDep = Annotated[DependencyTrackClient, Depends(required_dtrack_dependency)]
 NotifierDep = Annotated[ChatNotifier, Depends(notifier_dependency)]
